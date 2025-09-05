@@ -37,12 +37,12 @@ import { SortAmountDownIcon } from '@patternfly/react-icons/dist/esm/icons/sort-
 import { Thead, Tr, Th, Tbody, Td, IAction, ActionsColumn, Table, InnerScrollContainer } from '@patternfly/react-table';
 import { artemisPreferencesService } from '../artemis-preferences-service';
 import {
-  OptionsMenu,
-  OptionsMenuItem,
-  OptionsMenuItemGroup,
-  OptionsMenuSeparator,
-  OptionsMenuToggle
-} from '@patternfly/react-core/deprecated'
+  MenuItem,
+  Divider,
+  MenuToggle,
+  MenuList,
+  Select
+} from '@patternfly/react-core'
 
 import { ArtemisFilters } from './ArtemisFilters';
 import {Simulate} from "react-dom/test-utils";
@@ -114,10 +114,10 @@ const operationOptions = [
   const [rows, setRows] = useState([])
   const [resultsSize, setresultsSize] = useState(0)
   const [columnsLoaded, setColumnsLoaded] = useState(false);
-
+  const [operationOpen, setOperationOpen] = useState(false);
+  const onToggle = () => setOperationOpen(prev => !prev);
   const [columns, setColumns] = useState(broker.allColumns);
   const [activeSort, setActiveSort] = useState(initialActiveSort);
-  const [isSortDropdownOpen, setIsSortDropdownOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [page, setPage] = useState(1);
   const [isCompact, setIsCompact] = useState(false);
@@ -334,63 +334,67 @@ const operationOptions = [
     );
   };
 
+
+
   return (
     <React.Fragment>
 
       <Toolbar id="toolbar">
         <ToolbarContent>
           <ToolbarItem key='address-sort'>
-            <OptionsMenu
-              id="options-menu-multiple-options-example"
-              menuItems={[
-                <OptionsMenuItemGroup key="sort-columns" aria-label="Sort column">
-                  {Object.values(broker.allColumns).filter((element) => element.visible).map((column, columnIndex) => (
-                    <OptionsMenuItem
-                      key={column.id}
-                      isSelected={activeSort.id === column.id}
-                      onSelect={() => {
-                        updateActiveSort(column.id, activeSort.order)
-                      }}
-                    >
-                      {column.name}
-                    </OptionsMenuItem>
-                  ))}
-                </OptionsMenuItemGroup>,
-                <OptionsMenuSeparator key="separator" />,
-                <OptionsMenuItemGroup key="sort-direction" aria-label="Sort direction">
-                  <OptionsMenuItem
-                    onSelect={() => updateActiveSort(activeSort.id, SortDirection.ASCENDING)}
-                    isSelected={activeSort.order === SortDirection.ASCENDING}
-                    id="ascending"
-                    key="ascending"
-                  >
-                    Ascending
-                  </OptionsMenuItem>
-                  <OptionsMenuItem
-                    onSelect={() => updateActiveSort(activeSort.id, SortDirection.DESCENDING)}
-                    isSelected={activeSort.order === SortDirection.DESCENDING}
-                    id="descending"
-                    key="descending"
-                  >
-                    Descending
-                  </OptionsMenuItem>
-                </OptionsMenuItemGroup>
-              ]}
-              isOpen={isSortDropdownOpen}
-              toggle={
-                <OptionsMenuToggle
-                  hideCaret
-                  onToggle={() => setIsSortDropdownOpen(!isSortDropdownOpen)}
-                  toggleTemplate={<SortAmountDownIcon />}
-                />
-              }
-              isPlain
-              isGrouped
-            />
+            <Select
+              aria-label="Options menu"
+              isOpen={operationOpen}
+              onOpenChange={setOperationOpen}
+              onSelect={() => setOperationOpen(false)}
+              toggle={(toggleRef) => (
+                <MenuToggle
+                  ref={toggleRef}
+                  onClick={onToggle}
+                  variant="plain"
+                >
+                  <SortAmountDownIcon />
+                </MenuToggle>
+              )}
+            >
+              <MenuList>
+                {visibleColumns.map(column => (
+                  <MenuItem
+                    key={column.id}
+                    isSelected={activeSort.id === column.id}
+                    onClick={() => {
+                      updateActiveSort(column.id, activeSort.order)
+                    }}>
+                    {column.name}
+                  </MenuItem>
+                ))}
+                <Divider key="separator" />
+                <MenuItem
+                  onClick={() => {
+                    updateActiveSort(activeSort.id, SortDirection.ASCENDING)
+                  }}
+                  isSelected={activeSort.order === SortDirection.ASCENDING}
+                  id="ascending"
+                  key="ascending"
+                >
+                  Ascending
+                </MenuItem>
+                <MenuItem
+                  onClick={() => {
+                    updateActiveSort(activeSort.id, SortDirection.DESCENDING)
+                  }}
+                  isSelected={activeSort.order === SortDirection.DESCENDING}
+                  id="descending"
+                  key="descending"
+                >
+                  Descending
+                </MenuItem>
+              </MenuList>
+            </Select>
           </ToolbarItem>
 
           <ArtemisFilters
-            columns={columns}
+            columns={visibleColumns}
             operationOptions={operationOptions}
             initialFilter={filter}
             onApplyFilter={(f) => {
