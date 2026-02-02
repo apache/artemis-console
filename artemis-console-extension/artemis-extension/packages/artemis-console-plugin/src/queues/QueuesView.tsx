@@ -119,31 +119,33 @@ export const QueuesView: React.FunctionComponent<Navigate> = navigate => {
               <Text>A Filter will search for messages that have a matching property.</Text>
               <Text component={TextVariants.h3}>Filter Examples</Text>
               <TextList component={TextListVariants.dl}>
-                <TextListItem component={TextListItemVariants.dt}>header = 'value'</TextListItem>
-                <TextListItem component={TextListItemVariants.dd}> This will return any message where the message header <b>header</b> has the string value <b>value</b></TextListItem>
-                <TextListItem component={TextListItemVariants.dt}>header = 1</TextListItem>
-                <TextListItem component={TextListItemVariants.dd}> This will return any message where the message header <b>header</b> has the int, short, long or double value <b>1</b></TextListItem>
-                <TextListItem component={TextListItemVariants.dt}>header {'>'} 1</TextListItem>
-                <TextListItem component={TextListItemVariants.dd}> This will return any message where the message header <b>header</b> has an int, short, long or double value greater than <b>1</b></TextListItem>
-                <TextListItem component={TextListItemVariants.dt}>header {'<>'} 'value'</TextListItem>
-                <TextListItem component={TextListItemVariants.dd}> This will return any message where the message header <b>header</b> exists and does not equal <b>value</b></TextListItem>
-                <TextListItem component={TextListItemVariants.dt}>header IN ('value1', 'value2')</TextListItem>
-                <TextListItem component={TextListItemVariants.dd}> This will return any message where the message header <b>header</b> equals either <b>value1</b> or <b>value2</b></TextListItem>
-                <TextListItem component={TextListItemVariants.dt}>header1 = 'value1' AND header2 = 'value2'</TextListItem>
-                <TextListItem component={TextListItemVariants.dd}> This will return any message where the message header <b>header1</b> has the value <b>value1</b> and the message header <b>header2</b> has the value <b>value2</b></TextListItem>
-                <TextListItem component={TextListItemVariants.dt}>header LIKE 'value%'</TextListItem>
-                <TextListItem component={TextListItemVariants.dd}> This will return any message where the message header <b>header</b> has the pattern matching value <b>value%</b> such as <b>value1</b>, <b>value2345</b> etc</TextListItem>
-                <TextListItem component={TextListItemVariants.dt}>header LIKE 'value_'</TextListItem>
-                <TextListItem component={TextListItemVariants.dd}> This will return any message where the message header <b>header</b> has the pattern matching value <b>value_</b> such as <b>value1</b> but not <b>value2345</b></TextListItem>
-                <TextListItem component={TextListItemVariants.dt}>header IS null</TextListItem>
-                <TextListItem component={TextListItemVariants.dd}> This will return any message where the message header <b>header</b> has a null value or does not exist</TextListItem>
+                <TextListItem component={TextListItemVariants.dt}>property = 'value'</TextListItem>
+                <TextListItem component={TextListItemVariants.dd}> This will return any message where the message property <b>property</b> has the string value <b>value</b></TextListItem>
+                <TextListItem component={TextListItemVariants.dt}>property = 1</TextListItem>
+                <TextListItem component={TextListItemVariants.dd}> This will return any message where the message property <b>property</b> has the int, short, long or double value <b>1</b></TextListItem>
+                <TextListItem component={TextListItemVariants.dt}>property {'>'} 1</TextListItem>
+                <TextListItem component={TextListItemVariants.dd}> This will return any message where the message property <b>property</b> has an int, short, long or double value greater than <b>1</b></TextListItem>
+                <TextListItem component={TextListItemVariants.dt}>property {'<>'} 'value'</TextListItem>
+                <TextListItem component={TextListItemVariants.dd}> This will return any message where the message property <b>property</b> exists and does not equal <b>value</b></TextListItem>
+                <TextListItem component={TextListItemVariants.dt}>property IN ('value1', 'value2')</TextListItem>
+                <TextListItem component={TextListItemVariants.dd}> This will return any message where the message property <b>property</b> equals either <b>value1</b> or <b>value2</b></TextListItem>
+                <TextListItem component={TextListItemVariants.dt}>property1 = 'value1' AND property2 = 'value2'</TextListItem>
+                <TextListItem component={TextListItemVariants.dd}> This will return any message where the message property <b>property1</b> has the value <b>value1</b> and the message property <b>property2</b> has the value <b>value2</b></TextListItem>
+                <TextListItem component={TextListItemVariants.dt}>property LIKE 'value%'</TextListItem>
+                <TextListItem component={TextListItemVariants.dd}> This will return any message where the message property <b>property</b> has the pattern matching value <b>value%</b> such as <b>value1</b>, <b>value2345</b> etc</TextListItem>
+                <TextListItem component={TextListItemVariants.dt}>property LIKE 'value_'</TextListItem>
+                <TextListItem component={TextListItemVariants.dd}> This will return any message where the message property <b>property</b> has the pattern matching value <b>value_</b> such as <b>value1</b> but not <b>value2345</b></TextListItem>
+                <TextListItem component={TextListItemVariants.dt}>property IS null</TextListItem>
+                <TextListItem component={TextListItemVariants.dd}> This will return any message where the message property <b>property</b> has a null value or does not exist</TextListItem>
               </TextList>
-              <Text> The following pre defined identifiers can also be used to filter messages </Text>
+              <Text>The following pre defined identifiers can also be used to filter messages </Text>
               <TextList component={TextListVariants.dl}>
                 <TextListItem component={TextListItemVariants.dt}>AMQUserID</TextListItem>
                 <TextListItem component={TextListItemVariants.dd}>The ID set by the user when the message is sent. This is analogous to the <b>JMSMessageID</b> for JMS-based clients.</TextListItem>
                 <TextListItem component={TextListItemVariants.dt}>AMQAddress</TextListItem>
                 <TextListItem component={TextListItemVariants.dd}>The address to which the message was sent.</TextListItem>
+                <TextListItem component={TextListItemVariants.dt}>AMQGroupID</TextListItem>
+                <TextListItem component={TextListItemVariants.dd}>The group ID used when sending the message.</TextListItem>
                 <TextListItem component={TextListItemVariants.dt}>AMQPriority</TextListItem>
                 <TextListItem component={TextListItemVariants.dd}>To refer to the priority of a message. Message priorities are integers with valid values from 0 - 9. 0 is the lowest priority and 9 is the highest. e.g. <i>AMQPriority = 3 AND animal = 'aardvark'</i></TextListItem>
                 <TextListItem component={TextListItemVariants.dt}>AMQExpiration</TextListItem>
@@ -154,8 +156,6 @@ export const QueuesView: React.FunctionComponent<Navigate> = navigate => {
                 <TextListItem component={TextListItemVariants.dd}>The timestamp of when the message was created. The value is a long integer.</TextListItem>
                 <TextListItem component={TextListItemVariants.dt}>AMQSize</TextListItem>
                 <TextListItem component={TextListItemVariants.dd}>The size of a message in bytes. The value is an integer.</TextListItem>
-                <TextListItem component={TextListItemVariants.dt}>AMQGroupID</TextListItem>
-                <TextListItem component={TextListItemVariants.dd}>The group ID used when sending the message.</TextListItem>
               </TextList>
           </TextContent>
           </Modal>
