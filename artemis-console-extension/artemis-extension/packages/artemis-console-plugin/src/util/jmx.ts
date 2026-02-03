@@ -28,7 +28,12 @@ const ADDRESS_COMPONENT = "component=addresses";
  * "127.0.0.1",component=addresses,address="q1",subcomponent=queues,routing-type="anycast",queue="q1"
  */
 export function createQueueObjectName(brokerMBean: string, address: string, routingType: string, queue: string): string {
-    return brokerMBean + ADDRESS_COMPONENT_PART + address + ADDRESS_SUBCOMPONENT_PART + routingType.toLowerCase() + ADDRESS_TYPE_PART + queue + STRING_DELIMETER;
+    var queueMBeanName = queue;
+    if(queueMBeanName.includes('\\')){
+        //it may have a client id with /. in the name which is delimeted in the mbean name
+        queueMBeanName = queueMBeanName.replaceAll('\\', '\\\\');
+    }
+    return brokerMBean + ADDRESS_COMPONENT_PART + address + ADDRESS_SUBCOMPONENT_PART + routingType.toLowerCase() + ADDRESS_TYPE_PART + queueMBeanName + STRING_DELIMETER;
 }
 
 export function createAddressObjectName(brokerMBean: string, address: string) {

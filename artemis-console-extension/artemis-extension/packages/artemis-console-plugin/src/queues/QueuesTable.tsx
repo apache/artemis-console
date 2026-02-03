@@ -247,7 +247,11 @@ export const QueuesTable: React.FunctionComponent<QueueNavigate> = navigate => {
     const rowName = row.name;
     const rowAddress = row.address;
     const rowRoutingType = row.routingType;
-    const rowPerms = permissions[rowName];
+    var rowPerms = permissions[rowName];
+    if(rowPerms == undefined) {
+      //it may have a client id with /. in the name which is delimeted in the mbean name
+      rowPerms = permissions[row.name.replaceAll('\\', '\\\\')];
+    }
     const actions: IAction[] = [
       showInJmxAction(rowName, rowAddress, rowRoutingType),
       attributesAction(rowName, rowAddress, rowRoutingType),
