@@ -54,7 +54,7 @@
     "ts-node": "^10.9.2",
     "tsup": "^8.5.1",
     "typescript": "^5.8.3",
-    "webpack": "^5.103.0"
+    "webpack": "^5.104.1"
   },
   "peerDependencies": {
     "@hawtio/react": "^1.11",
