@@ -15,8 +15,7 @@
  * limitations under the License.
  */
 import { eventService, EVENT_REFRESH,MBeanNode, MBeanTree, PluginNodeSelectionContext, workspace } from "@hawtio/react";
-import { TreeViewDataItem } from "@patternfly/react-core";
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { useNavigate } from 'react-router-dom'
 import { artemisPluginName } from "./globals";
 import { configManager } from "./config-manager";
@@ -32,6 +31,8 @@ export function useArtemisTree() {
     const { selectedNode, setSelectedNode } = useContext(PluginNodeSelectionContext)
     const navigate = useNavigate();
 
+    const refSelectedNode = useRef<MBeanNode | null>()
+    refSelectedNode.current = selectedNode
 
     const populateTree = async () => {
         const wkspTree: MBeanTree = await workspace.getTree();
@@ -43,11 +44,12 @@ export function useArtemisTree() {
                 setBrokerNode(rootNode.children[0]);
             }
             // Expand the nodes to redisplay the path
-            if (selectedNode) {
-                rootNode.forEach(selectedNode?.path(), (node: MBeanNode) => {
-                    const tvd = node as TreeViewDataItem
-                    tvd.defaultExpanded = true
-                })
+            if (refSelectedNode.current) {
+                let curr: MBeanNode | null = refSelectedNode.current
+                while (curr) {
+                    curr.defaultExpanded = true
+                    curr = curr.parent
+                }
             }
             const subTree: MBeanTree = MBeanTree.createFromNodes(artemisPluginName, [rootNode])
             setTree(subTree)

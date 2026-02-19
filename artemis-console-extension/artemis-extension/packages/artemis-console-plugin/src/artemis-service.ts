@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 import { ActiveSort, Filter } from './table/ArtemisTable'
-import { eventService, jolokiaService, MBeanNode, workspace } from '@hawtio/react'
+import { eventService, jolokiaService, MBeanNode, parseMBeanName, workspace } from '@hawtio/react'
 import { createAddressObjectName, createQueueObjectName } from './util/jmx'
 import { log } from './globals'
 import { Message } from './messages/MessageView'
@@ -783,61 +783,11 @@ class ArtemisService {
     }
 }
 
-export function parseMBeanName(name: string): { domain: string, properties: Record<string, string> } {
-    const colon = name.indexOf(":")
-    if (colon === -1) {
-        throw new Error("Illegal ObjectName")
-    }
-
-    const domain = name.substring(0, colon)
-    const propsString = name.substring(colon + 1)
-
-    let i = 0
-    const len = propsString.length
-    const props: Record<string, string> = {}
-
-    while (i < len) {
-        let key = ""
-        while (i < len && propsString[i] !== "=") {
-            key += propsString[i++]
-        }
-
-        // skip '='
-        i++
-
-        let value = ""
-        if (propsString[i] === '"') {
-            // quoted value - only double quote
-            i++
-            while (i < len) {
-                const ch = propsString[i++]
-                if (ch === '"') {
-                    break
-                }
-                value += ch
-            }
-        } else {
-            // unquoted value can be empty
-            while (i < len && propsString[i] !== ",") {
-                value += propsString[i++]
-            }
-        }
-
-        props[key.trim()] = value.trim()
-
-        if (propsString[i] === ",") {
-            i++
-        }
-    }
-
-    return { domain, properties: props };
-}
-
 export async function findMBeanInfo(brokerObjectName: string): Promise<MBeanNode | null> {
     const tree = await workspace.getTree()
     const parsed = parseMBeanName(brokerObjectName)
 
-    const matching = tree.findMBeans(parsed.domain, parsed.properties)
+    const matching = parsed.domain && tree.findMBeans(parsed.domain, parsed.properties)
     if (!matching) {
         return null
     }
