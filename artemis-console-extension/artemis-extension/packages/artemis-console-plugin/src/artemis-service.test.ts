@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 import { beforeAll, describe, expect, test } from "@jest/globals"
-import { artemisService, parseMBeanName } from "./artemis-service";
+import { artemisService } from "./artemis-service";
 import { SortDirection } from './table/ArtemisTable'
-import { userService } from '@hawtio/react'
+import { userService, parseMBeanName } from '@hawtio/react'
 
 beforeAll(async () => {
   // needed to determine Jolokia URL

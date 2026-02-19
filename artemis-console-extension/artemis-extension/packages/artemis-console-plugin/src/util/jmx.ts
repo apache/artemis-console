@@ -28,16 +28,45 @@ const ADDRESS_COMPONENT = "component=addresses";
  * "127.0.0.1",component=addresses,address="q1",subcomponent=queues,routing-type="anycast",queue="q1"
  */
 export function createQueueObjectName(brokerMBean: string, address: string, routingType: string, queue: string): string {
-    var queueMBeanName = queue;
-    if(queueMBeanName.includes('\\')){
-        //it may have a client id with /. in the name which is delimeted in the mbean name
-        queueMBeanName = queueMBeanName.replaceAll('\\', '\\\\');
-    }
-    return brokerMBean + ADDRESS_COMPONENT_PART + address + ADDRESS_SUBCOMPONENT_PART + routingType.toLowerCase() + ADDRESS_TYPE_PART + queueMBeanName + STRING_DELIMETER;
+    let addressMBeanName = mbeanEscape(address);
+    let queueMBeanName = mbeanEscape(queue);
+    return brokerMBean + ADDRESS_COMPONENT_PART + addressMBeanName + ADDRESS_SUBCOMPONENT_PART + routingType.toLowerCase() + ADDRESS_TYPE_PART + queueMBeanName + STRING_DELIMETER;
 }
 
 export function createAddressObjectName(brokerMBean: string, address: string) {
-    return brokerMBean + ADDRESS_COMPONENT_PART + address + STRING_DELIMETER;
+    return brokerMBean + ADDRESS_COMPONENT_PART + mbeanEscape(address) + STRING_DELIMETER;
+}
+
+/**
+ * This function is an equivalent of `javax.management.ObjectName.quote()`
+ * @param value
+ */
+function mbeanEscape(value: string): string {
+    let res = value
+    // it may have a client id with \. in the name which is delimited in the mbean name
+    // according to javax.management.ObjectName.quote() javadoc, we have to replace:
+    res = res.replaceAll('\\', '\\\\');
+    res = res.replaceAll('*', '\\*');
+    res = res.replaceAll('"', '\\"');
+    res = res.replaceAll('?', '\\?');
+    return res
+}
+
+/**
+ * This function should behave like `javax.management.ObjectName.unquote()` for quoted values
+ * and should not change the value when it's not quoted
+ * @param value
+ */
+export function mbeanUnescape(value: string): string {
+    if (!value || !value.startsWith('"') || !value.endsWith('"')) {
+        return value
+    }
+    let res = value.substring(1, value.length - 1);
+    res = res.replaceAll('\\"', '"');
+    res = res.replaceAll('\\*', '*');
+    res = res.replaceAll('\\?', '?');
+    res = res.replaceAll('\\\\', '\\');
+    return res
 }
 
 export function isQueue(node: MBeanNode): boolean {

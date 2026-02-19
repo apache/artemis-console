@@ -92,10 +92,20 @@ function findBrokers(children: MBeanNode[] | undefined): MBeanNode[] {
   for (const c of children) {
     if (c.id.endsWith('-folder')) {
       if (oldBrokers.has(c.name)) {
-        const newBrokerNode = oldBrokers.get(c.name)!.copyTo(`Broker ${c.name}`)
-        newBrokerNode.children = c.children
+        const oldBrokerNode = oldBrokers.get(c.name)!
+        const newBrokerNode = new MBeanNode(null, `Broker ${c.name}`, true)
         newBrokerNode.icon = c.icon
         newBrokerNode.expandedIcon = c.expandedIcon
+        newBrokerNode.children = []
+        // newBrokerNode.metadata = oldBrokerNode.metadata
+        newBrokerNode.objectName = oldBrokerNode.objectName
+        newBrokerNode.mbean = oldBrokerNode.mbean
+        newBrokerNode.propertyList = oldBrokerNode.propertyList
+
+        const children = [...c.children!]
+        children.forEach(c => {
+          newBrokerNode.adopt(c)
+        })
         brokers.push(newBrokerNode)
       }
     }

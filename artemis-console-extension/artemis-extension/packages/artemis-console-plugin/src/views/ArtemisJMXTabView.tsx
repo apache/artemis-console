@@ -19,7 +19,7 @@ import { Tabs, Tab, TabTitleText, Button, Modal, ModalVariant, PageSection } fro
 import { Attributes, Chart, MBeanNode, Operations } from '@hawtio/react';
 import { CreateQueue } from '../queues/CreateQueue';
 import { DeleteAddress } from '../addresses/DeleteAddress';
-import { isAddress as isAnAddress, isQueue } from '../util/jmx'
+import { isAddress as isAnAddress, isQueue, mbeanUnescape } from '../util/jmx'
 import { MessagesTable } from '../messages/MessagesTable';
 import { SendMessage } from '../messages/SendMessage';
 import { Message, MessageView } from '../messages/MessageView';
@@ -58,11 +58,11 @@ export const ArtemisJMXTabs: React.FunctionComponent = () => {
   const isAQueue = isQueue(selectedNode);
 
   let prop = selectedNode.getProperty("routing-type");
-  const routingType: string  = prop === undefined?'':prop;
+  const routingType: string  = mbeanUnescape(prop === undefined?'':prop);
   prop = selectedNode.getProperty("address");
-  const address: string | undefined = prop === undefined?'':prop;
+  const address: string | undefined = mbeanUnescape(prop === undefined?'':prop);
   prop = selectedNode.getProperty("queue");
-  const queue: string | undefined = prop === undefined?'':prop;
+  const queue: string | undefined = mbeanUnescape(prop === undefined?'':prop);
 
   const handleTabClick = ( event: React.MouseEvent<any> | React.KeyboardEvent | MouseEvent, tabIndex: string | number
   ) => {
