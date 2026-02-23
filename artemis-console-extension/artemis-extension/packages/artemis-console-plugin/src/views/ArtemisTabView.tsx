@@ -26,6 +26,7 @@ import { Status } from '../status/Status';
 import { Filter } from '../table/ArtemisTable';
 import { QueuesView } from '../queues/QueuesView';
 import { BrokerDiagram } from '../brokers/BrokerDiagram';
+import { artemisService } from '../artemis-service';
 
 
 export type Broker = {
@@ -72,38 +73,52 @@ export const ArtemisTabs: React.FunctionComponent = () => {
                   <Status/>
                 }
               </Tab>
+              { artemisService.canListConnections(brokerNode) &&
               <Tab eventKey={1} title={<TabTitleText>Connections</TabTitleText>} aria-label="connections">
                 {activeTabKey === 1 &&
                   <ConnectionsTable search={handleSearch} filter={searchFilter}/>
                 }
               </Tab>
+              }
+              { artemisService.canListSessions(brokerNode) &&
               <Tab eventKey={2} title={<TabTitleText>Sessions</TabTitleText>} aria-label="sessions">
                 {activeTabKey === 2 &&
                   <SessionsTable search={handleSearch} filter={searchFilter}/>
                 }
               </Tab>
+              }
+              { artemisService.canListProducers(brokerNode) &&
               <Tab eventKey={3} title={<TabTitleText>Producers</TabTitleText>} aria-label="producers">
                 {activeTabKey === 3 &&
                   <ProducerTable search={handleSearch} filter={searchFilter}/>
                 }
               </Tab>
+              }
+              { artemisService.canListConsumers(brokerNode) &&
               <Tab eventKey={4} title={<TabTitleText>Consumers</TabTitleText>} aria-label="consumers">
                 {activeTabKey === 4 &&
                   <ConsumerTable search={handleSearch} filter={searchFilter}/>
                 }
               </Tab>
+              }
+              { artemisService.canListAddresses(brokerNode) &&
               <Tab eventKey={5} title={<TabTitleText>Addresses</TabTitleText>} aria-label="addresses">
                 {activeTabKey === 5 &&
                   <AddressesTable search={handleSearch} filter={searchFilter}/>
                 }
               </Tab>
+              }
+              { artemisService.canListQueues(brokerNode) &&
               <Tab eventKey={6} title={<TabTitleText>Queues</TabTitleText>} aria-label="queues">
                 {activeTabKey === 6 &&
                   <QueuesView search={handleSearch} filter={searchFilter}/>
                 }
               </Tab>
+              }
+              { artemisService.canListNetworkTopology(brokerNode) &&
               <Tab eventKey={7} title={<TabTitleText>Broker Diagram</TabTitleText>} aria-label="broker-diagram">
               </Tab>
+              }
           </Tabs>
         </PageSection>
         <PageSection padding={{ default: 'noPadding' }}>

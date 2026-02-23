@@ -51,3 +51,114 @@ describe("Artemis Service basic tests", () => {
   })
 
 })
+
+/**
+ * Tests for permission checking methods
+ */
+describe("Artemis Service permission checks", () => {
+
+  const createMockBrokerNode = (hasInvokeRights: (sig: string) => boolean) => ({
+    hasInvokeRights,
+    name: "mockBroker",
+    objectName: "org.apache.activemq.artemis:broker=mockBroker"
+  } as any)
+
+  test("canListConnections returns true when broker has invoke rights", () => {
+    const mockBroker = createMockBrokerNode((sig) => sig === "listConnections(java.lang.String,int,int)")
+    expect(artemisService.canListConnections(mockBroker)).toBe(true)
+  })
+
+  test("canListConnections returns false when broker lacks invoke rights", () => {
+    const mockBroker = createMockBrokerNode(() => false)
+    expect(artemisService.canListConnections(mockBroker)).toBe(false)
+  })
+
+  test("canListConnections returns false when broker is undefined", () => {
+    expect(artemisService.canListConnections(undefined)).toBe(false)
+  })
+
+  test("canListSessions returns true when broker has invoke rights", () => {
+    const mockBroker = createMockBrokerNode((sig) => sig === "listSessions(java.lang.String,int,int)")
+    expect(artemisService.canListSessions(mockBroker)).toBe(true)
+  })
+
+  test("canListSessions returns false when broker lacks invoke rights", () => {
+    const mockBroker = createMockBrokerNode(() => false)
+    expect(artemisService.canListSessions(mockBroker)).toBe(false)
+  })
+
+  test("canListSessions returns false when broker is undefined", () => {
+    expect(artemisService.canListSessions(undefined)).toBe(false)
+  })
+
+  test("canListConsumers returns true when broker has invoke rights", () => {
+    const mockBroker = createMockBrokerNode((sig) => sig === "listConsumers(java.lang.String,int,int)")
+    expect(artemisService.canListConsumers(mockBroker)).toBe(true)
+  })
+
+  test("canListConsumers returns false when broker lacks invoke rights", () => {
+    const mockBroker = createMockBrokerNode(() => false)
+    expect(artemisService.canListConsumers(mockBroker)).toBe(false)
+  })
+
+  test("canListConsumers returns false when broker is undefined", () => {
+    expect(artemisService.canListConsumers(undefined)).toBe(false)
+  })
+
+  test("canListProducers returns true when broker has invoke rights", () => {
+    const mockBroker = createMockBrokerNode((sig) => sig === "listProducers(java.lang.String,int,int)")
+    expect(artemisService.canListProducers(mockBroker)).toBe(true)
+  })
+
+  test("canListProducers returns false when broker lacks invoke rights", () => {
+    const mockBroker = createMockBrokerNode(() => false)
+    expect(artemisService.canListProducers(mockBroker)).toBe(false)
+  })
+
+  test("canListProducers returns false when broker is undefined", () => {
+    expect(artemisService.canListProducers(undefined)).toBe(false)
+  })
+
+  test("canListAddresses returns true when broker has invoke rights", () => {
+    const mockBroker = createMockBrokerNode((sig) => sig === "listAddresses(java.lang.String,int,int)")
+    expect(artemisService.canListAddresses(mockBroker)).toBe(true)
+  })
+
+  test("canListAddresses returns false when broker lacks invoke rights", () => {
+    const mockBroker = createMockBrokerNode(() => false)
+    expect(artemisService.canListAddresses(mockBroker)).toBe(false)
+  })
+
+  test("canListAddresses returns false when broker is undefined", () => {
+    expect(artemisService.canListAddresses(undefined)).toBe(false)
+  })
+
+  test("canListQueues returns true when broker has invoke rights", () => {
+    const mockBroker = createMockBrokerNode((sig) => sig === "listQueues(java.lang.String,int,int)")
+    expect(artemisService.canListQueues(mockBroker)).toBe(true)
+  })
+
+  test("canListQueues returns false when broker lacks invoke rights", () => {
+    const mockBroker = createMockBrokerNode(() => false)
+    expect(artemisService.canListQueues(mockBroker)).toBe(false)
+  })
+
+  test("canListQueues returns false when broker is undefined", () => {
+    expect(artemisService.canListQueues(undefined)).toBe(false)
+  })
+
+  test("canListNetworkTopology returns true when broker has invoke rights", () => {
+    const mockBroker = createMockBrokerNode((sig) => sig === "listNetworkTopology")
+    expect(artemisService.canListNetworkTopology(mockBroker)).toBe(true)
+  })
+
+  test("canListNetworkTopology returns false when broker lacks invoke rights", () => {
+    const mockBroker = createMockBrokerNode(() => false)
+    expect(artemisService.canListNetworkTopology(mockBroker)).toBe(false)
+  })
+
+  test("canListNetworkTopology returns false when broker is undefined", () => {
+    expect(artemisService.canListNetworkTopology(undefined)).toBe(false)
+  })
+
+})

@@ -781,6 +781,34 @@ class ArtemisService {
         }
         return false;
     }
+
+    canListConnections = (broker: MBeanNode | undefined): boolean => {
+        return (this.DEBUG_PRIVS && broker?.hasInvokeRights(LIST_CONNECTIONS_SIG)) ?? false
+    }
+
+    canListSessions = (broker: MBeanNode | undefined): boolean => {
+        return (this.DEBUG_PRIVS && broker?.hasInvokeRights(LIST_SESSIONS_SIG)) ?? false
+    }
+
+    canListConsumers = (broker: MBeanNode | undefined): boolean => {
+        return (this.DEBUG_PRIVS && broker?.hasInvokeRights(LIST_CONSUMERS_SIG)) ?? false
+    }
+
+    canListProducers = (broker: MBeanNode | undefined): boolean => {
+        return (this.DEBUG_PRIVS && broker?.hasInvokeRights(LIST_PRODUCERS_SIG)) ?? false
+    }
+
+    canListAddresses = (broker: MBeanNode | undefined): boolean => {
+        return (this.DEBUG_PRIVS && broker?.hasInvokeRights(LIST_ADDRESSES_SIG)) ?? false
+    }
+
+    canListQueues = (broker: MBeanNode | undefined): boolean => {
+        return (this.DEBUG_PRIVS && broker?.hasInvokeRights(LIST_QUEUES_SIG)) ?? false
+    }
+
+    canListNetworkTopology = (broker: MBeanNode | undefined): boolean => {
+        return (this.DEBUG_PRIVS && broker?.hasInvokeRights(LIST_NETWORK_TOPOLOGY_SIG)) ?? false
+    }
 }
 
 export async function findMBeanInfo(brokerObjectName: string): Promise<MBeanNode | null> {
