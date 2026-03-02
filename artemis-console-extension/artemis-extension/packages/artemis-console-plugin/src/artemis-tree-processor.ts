@@ -90,9 +90,9 @@ function findBrokers(children: MBeanNode[] | undefined): MBeanNode[] {
   }
   const brokers: MBeanNode[] = []
   for (const c of children) {
-    if (c.id.endsWith('-folder')) {
-      if (oldBrokers.has(c.name)) {
-        const oldBrokerNode = oldBrokers.get(c.name)!
+    if (oldBrokers.has(c.name)) {
+      const oldBrokerNode = oldBrokers.get(c.name)!
+      if (c.id.endsWith('-folder')) {
         const newBrokerNode = new MBeanNode(null, `Broker ${c.name}`, true)
         newBrokerNode.icon = c.icon
         newBrokerNode.expandedIcon = c.expandedIcon
@@ -106,6 +106,14 @@ function findBrokers(children: MBeanNode[] | undefined): MBeanNode[] {
         children.forEach(c => {
           newBrokerNode.adopt(c)
         })
+        brokers.push(newBrokerNode)
+      } else {
+        // the broker doesn't have children at all, but we still need the node
+        const newBrokerNode = new MBeanNode(null, `Broker ${c.name}`, false)
+        newBrokerNode.icon = c.icon
+        newBrokerNode.objectName = oldBrokerNode.objectName
+        newBrokerNode.mbean = oldBrokerNode.mbean
+        newBrokerNode.propertyList = oldBrokerNode.propertyList
         brokers.push(newBrokerNode)
       }
     }
