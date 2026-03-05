@@ -1,6 +1,6 @@
 {
   "name": "artemis-console-plugin",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "description": "Artemis Console Plugin for Hawtio",
   "license": "Apache-2.0",
   "files": [
