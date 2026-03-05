@@ -37,7 +37,8 @@
     "diff": "4.0.4",
     "tar": "7.5.7",
     "lodash": "4.17.23",
-    "@remix-run/router": "1.23.2"
+    "@remix-run/router": "1.23.2",
+    "minimatch": "3.1.4"
   },
   "eslintConfig": {
     "extends": [
