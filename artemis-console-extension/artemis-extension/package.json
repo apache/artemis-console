@@ -25,7 +25,7 @@
     "postcss": "8.5.6",
     "rollup": "4.59.0",
     "semver": "7.7.2",
-    "serialize-javascript": "6.0.2",
+    "serialize-javascript": "7.0.3",
     "tough-cookie": "5.1.2",
     "webpack": "5.105.2",
     "ws": "8.18.3",
