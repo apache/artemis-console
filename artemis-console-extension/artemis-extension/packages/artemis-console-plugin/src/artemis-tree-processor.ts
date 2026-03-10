@@ -90,24 +90,29 @@ function findBrokers(children: MBeanNode[] | undefined): MBeanNode[] {
   }
   const brokers: MBeanNode[] = []
   for (const c of children) {
+    if (oldBrokers.has(c.name) && c.id.endsWith('-folder')) {
+      const oldBrokerNode = oldBrokers.get(c.name)!
+      const newBrokerNode = new MBeanNode(null, `Broker ${c.name}`, true)
+      newBrokerNode.icon = c.icon
+      newBrokerNode.expandedIcon = c.expandedIcon
+      newBrokerNode.children = []
+      // newBrokerNode.metadata = oldBrokerNode.metadata
+      newBrokerNode.objectName = oldBrokerNode.objectName
+      newBrokerNode.mbean = oldBrokerNode.mbean
+      newBrokerNode.propertyList = oldBrokerNode.propertyList
+
+      const children = [...c.children!]
+      children.forEach(c => {
+        newBrokerNode.adopt(c)
+      })
+      brokers.push(newBrokerNode)
+    }
+  }
+  // iterate again to catch the brokers which didn't have any children (were not a '-folder')
+  for (const c of children) {
     if (oldBrokers.has(c.name)) {
       const oldBrokerNode = oldBrokers.get(c.name)!
-      if (c.id.endsWith('-folder')) {
-        const newBrokerNode = new MBeanNode(null, `Broker ${c.name}`, true)
-        newBrokerNode.icon = c.icon
-        newBrokerNode.expandedIcon = c.expandedIcon
-        newBrokerNode.children = []
-        // newBrokerNode.metadata = oldBrokerNode.metadata
-        newBrokerNode.objectName = oldBrokerNode.objectName
-        newBrokerNode.mbean = oldBrokerNode.mbean
-        newBrokerNode.propertyList = oldBrokerNode.propertyList
-
-        const children = [...c.children!]
-        children.forEach(c => {
-          newBrokerNode.adopt(c)
-        })
-        brokers.push(newBrokerNode)
-      } else {
+      if (!c.id.endsWith('-folder') && !brokers.find(b => b.name === `Broker ${c.name}`)) {
         // the broker doesn't have children at all, but we still need the node
         const newBrokerNode = new MBeanNode(null, `Broker ${c.name}`, false)
         newBrokerNode.icon = c.icon
