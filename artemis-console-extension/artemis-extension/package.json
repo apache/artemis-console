@@ -10,6 +10,7 @@
   ],
   "scripts": {
     "build": "yarn workspaces foreach -Aipt run build",
+    "test": "yarn workspaces foreach -Aipt run test",
     "license": "yarn licenses generate-disclaimer -R > ../../artemis-console-distribution/src/main/resources/licenses/licenses/NPMLicenses.txt"
   },
   "resolutions": {
