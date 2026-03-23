@@ -99,16 +99,19 @@ export const Status: React.FunctionComponent = () => {
     useEffect(() => {
         // run only once at the beginning
         getBrokerInfo();
- 
+
         getAcceptors();
 
         getClusterConnections();
 
-        const refreshRate = jolokiaService.loadUpdateRate()
-        const timer = setInterval(getBrokerInfo, refreshRate ?? 5000)
-        return () => clearInterval(timer)
+        // Pause auto-refresh when Operations dialog is open to prevent collapsing expanded operations
+        if (!showOperationsDialog) {
+            const refreshRate = jolokiaService.loadUpdateRate()
+            const timer = setInterval(getBrokerInfo, refreshRate ?? 5000)
+            return () => clearInterval(timer)
+        }
 
-    }, [])
+    }, [showOperationsDialog])
 
     useEffect(() => {
     // update frontend when brokerInfo, acceptors, or clusterConnections change
