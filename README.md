@@ -30,8 +30,7 @@ You can quickly run and test the console by using `jetty-maven-plugin` configure
 Jetty server and deploys the plugin WAR application. From the 'artemis-console-war' directory run:
 
 ```console
-cd artemis-console-war
-mvn jetty:run-war -Dskip.yarn
+mvn -f artemis-console-war/pom.xml jetty:run-war -Dskip.yarn
 ```
 
 You can access the Artemis console with the sample plugin at: <http://localhost:8080/console/>. To connect to a running 
@@ -63,18 +62,48 @@ frontend project itself in development mode with `yarn start` or `npm run start`
 Start the plugin project in development mode with yarn:
 
 ```console
-cd artemis-console-extension/artemis-extension/app
-yarn start
+yarn --cwd artemis-console-extension/artemis-extension/app start
 ```
 
 or with npm:
 
 ```console
-cd artemis-console-extension/artemis-extension/app
-npm run start
+npm start --prefix artemis-console-extension/artemis-extension/app
 ```
 
 Now you should be able to preview the plugins under development at <http://localhost:8080/console/>. However, since it still
 hasn't been connected to a backend JVM, you can then connect to a running Artemis instance using the connect tab using for
 instance http://localhost:8161/console/jolokia.
 You can now edit the artemis console web application and see changes loaded live.
+
+### Debug plugin with VSCode
+
+To debug the plugin code in VSCode:
+
+1. Start the development server:
+   ```console
+   npm start --prefix artemis-console-extension/artemis-extension/app
+   ```
+
+2. Create a `.vscode/launch.json` file in the project root with the following configuration:
+   ```json
+   {
+     "version": "0.2.0",
+     "configurations": [
+       {
+         "name": "Debug in Chrome",
+         "type": "chrome",
+         "request": "launch",
+         "url": "http://localhost:8080/console/",
+         "webRoot": "${workspaceFolder}/artemis-console-extension/artemis-extension",
+         "sourceMapPathOverrides": {
+             "webpack:/*": "${webRoot}/*",
+         }
+       }
+     ]
+   }
+   ```
+
+3. Set breakpoints in your TypeScript source files
+4. Press F5 or use the "Run and Debug" panel to start debugging
+5. VSCode will launch Chrome and connect to your running development server
