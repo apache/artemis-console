@@ -203,7 +203,7 @@ export const AddressesTable: React.FunctionComponent<Navigate> = (navigate) => {
         ]}>
         <CreateQueue address={address}/>
       </Modal>
-      { canCreateAddress && <Modal
+      { canDeleteAddress && <Modal
         aria-label='delete-address-modal'
         variant={ModalVariant.medium}
         isOpen={showDeleteDialog}
