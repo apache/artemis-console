@@ -169,7 +169,7 @@ export const Status: React.FunctionComponent = () => {
                 </Tooltip>
             )
         } else {
-            return (v ? "" + v : "")
+            return v !== null && v !== undefined ? String(v) : ""
         }
     }
 
@@ -201,6 +201,10 @@ export const Status: React.FunctionComponent = () => {
                                     <TextListItem component={TextListItemVariants.dd}>Uptime: {actualValue(brokerInfo?.uptime)}</TextListItem>
                                     <TextListItem component={TextListItemVariants.dd}>Started: {actualValue(brokerInfo?.started)}</TextListItem>
                                     <TextListItem component={TextListItemVariants.dd}>HA Policy: {actualValue(brokerInfo?.haPolicy)}</TextListItem>
+                                    <TextListItem component={TextListItemVariants.dd}>Is backup: {actualValue(brokerInfo?.backup)}</TextListItem>
+                                    <TextListItem component={TextListItemVariants.dd}>Clustered: {actualValue(brokerInfo?.clustered)}</TextListItem>
+                                    <TextListItem component={TextListItemVariants.dd}>Replica synced: {actualValue(brokerInfo?.replicaSync)}</TextListItem>
+                                    <TextListItem component={TextListItemVariants.dd}>Connection count: {actualValue(brokerInfo?.connectionCount)}</TextListItem>
                                 </TextList>
                             </TextContent>
                         </CardBody>

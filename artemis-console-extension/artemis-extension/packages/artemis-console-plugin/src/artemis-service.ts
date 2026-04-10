@@ -52,6 +52,10 @@ export type BrokerInfo = {
     maxDiskUsage: number
     haPolicy: string | InaccessibleValue
     networkTopology: BrokerNetworkTopology
+    backup: string | InaccessibleValue
+    clustered: string | InaccessibleValue
+    connectionCount: number
+    replicaSync: string | InaccessibleValue
 }
 
 export class BrokerNetworkTopology {
@@ -178,7 +182,11 @@ const jolokiaAttributes = [
     "AddressMemoryUsage",
     "HAPolicy",
     "DiskStoreUsage",
-    "MaxDiskUsage"
+    "MaxDiskUsage",
+    "Backup",
+    "Clustered",
+    "ConnectionCount",
+    "ReplicaSync"
 ];
 
 /**
@@ -273,6 +281,10 @@ class ArtemisService {
                 if (diskStoreUsage > 0) {
                     diskStoreUsagePercentage = diskStoreUsage * 100;
                 }
+                const backup = response.Backup as string | InaccessibleValue;
+                const clustered = response.Clustered as string | InaccessibleValue;
+                const connectionCount = response.ConnectionCount as number;
+                const replicaSync = response.ReplicaSync as string | InaccessibleValue;
                 const topology = await jolokiaService.execute(brokerObjectName, LIST_NETWORK_TOPOLOGY_SIG).catch(e => {
                     eventService.notify({type: 'warning', message: jolokiaService.errorMessage(e) })
                     return "{}"
@@ -290,6 +302,10 @@ class ArtemisService {
                     diskStoreUsagePercentage: diskStoreUsagePercentage,
                     maxDiskUsage: maxDiskUsage,
                     haPolicy: haPolicy,
+                    backup: backup,
+                    clustered: clustered,
+                    connectionCount: connectionCount,
+                    replicaSync: replicaSync,
                     networkTopology: new BrokerNetworkTopology(JSON.parse(topology))
                 };
                 resolve({ loaded: true, accessible: true, info: brokerInfo });
