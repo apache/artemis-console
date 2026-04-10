@@ -48,6 +48,8 @@ export type BrokerInfo = {
     globalMaxSizeMB: number
     addressMemoryUsage: number
     addressMemoryUsed: number
+    diskStoreUsagePercentage: number
+    maxDiskUsage: number
     haPolicy: string | InaccessibleValue
     networkTopology: BrokerNetworkTopology
 }
@@ -174,7 +176,9 @@ const jolokiaAttributes = [
     "Uptime",
     "GlobalMaxSize",
     "AddressMemoryUsage",
-    "HAPolicy"
+    "HAPolicy",
+    "DiskStoreUsage",
+    "MaxDiskUsage"
 ];
 
 /**
@@ -256,12 +260,18 @@ class ArtemisService {
                 const addressMemoryUsage = response.AddressMemoryUsage as number;
                 const uptime = response.Uptime as string | InaccessibleValue;
                 const haPolicy = response.HAPolicy as string | InaccessibleValue;
+                const diskStoreUsage = response.DiskStoreUsage as number;
+                const maxDiskUsage = response.MaxDiskUsage as number;
                 const globalMaxSizeMB = globalMaxSize / 1048576;
                 let used = 0;
                 let addressMemoryUsageMB = 0;
                 if (addressMemoryUsage > 0) {
                     addressMemoryUsageMB = addressMemoryUsage / 1048576;
                     used = addressMemoryUsageMB / globalMaxSizeMB * 100
+                }
+                let diskStoreUsagePercentage = 0;
+                if (diskStoreUsage > 0) {
+                    diskStoreUsagePercentage = diskStoreUsage * 100;
                 }
                 const topology = await jolokiaService.execute(brokerObjectName, LIST_NETWORK_TOPOLOGY_SIG).catch(e => {
                     eventService.notify({type: 'warning', message: jolokiaService.errorMessage(e) })
@@ -277,6 +287,8 @@ class ArtemisService {
                     globalMaxSizeMB: globalMaxSizeMB,
                     addressMemoryUsage: addressMemoryUsageMB,
                     addressMemoryUsed: used,
+                    diskStoreUsagePercentage: diskStoreUsagePercentage,
+                    maxDiskUsage: maxDiskUsage,
                     haPolicy: haPolicy,
                     networkTopology: new BrokerNetworkTopology(JSON.parse(topology))
                 };
