@@ -43,7 +43,7 @@ export type BrokerInfo = {
     nodeID: string
     objectName: string
     version: string | InaccessibleValue
-    started: string | InaccessibleValue
+    started: boolean | InaccessibleValue
     uptime: string | InaccessibleValue
     globalMaxSizeMB: number
     addressMemoryUsage: number
@@ -52,10 +52,10 @@ export type BrokerInfo = {
     maxDiskUsage: number
     haPolicy: string | InaccessibleValue
     networkTopology: BrokerNetworkTopology
-    backup: string | InaccessibleValue
-    clustered: string | InaccessibleValue
+    backup: boolean | InaccessibleValue
+    clustered: boolean | InaccessibleValue
     connectionCount: number
-    replicaSync: string | InaccessibleValue
+    replicaSync: boolean | InaccessibleValue
 }
 
 export class BrokerNetworkTopology {
@@ -263,7 +263,7 @@ class ArtemisService {
                 const name = response.Name as string;
                 const nodeID = response.NodeID as string;
                 const version = response.Version as string | InaccessibleValue;
-                const started = response.Started as string | InaccessibleValue;
+                const started = response.Started as boolean | InaccessibleValue;
                 const globalMaxSize = response.GlobalMaxSize as number;
                 const addressMemoryUsage = response.AddressMemoryUsage as number;
                 const uptime = response.Uptime as string | InaccessibleValue;
@@ -281,10 +281,10 @@ class ArtemisService {
                 if (diskStoreUsage > 0) {
                     diskStoreUsagePercentage = diskStoreUsage * 100;
                 }
-                const backup = response.Backup as string | InaccessibleValue;
-                const clustered = response.Clustered as string | InaccessibleValue;
+                const backup = response.Backup as boolean | InaccessibleValue;
+                const clustered = response.Clustered as boolean | InaccessibleValue;
                 const connectionCount = response.ConnectionCount as number;
-                const replicaSync = response.ReplicaSync as string | InaccessibleValue;
+                const replicaSync = response.ReplicaSync as boolean | InaccessibleValue;
                 const topology = await jolokiaService.execute(brokerObjectName, LIST_NETWORK_TOPOLOGY_SIG).catch(e => {
                     eventService.notify({type: 'warning', message: jolokiaService.errorMessage(e) })
                     return "{}"
