@@ -220,12 +220,7 @@ export const Status: React.FunctionComponent = () => {
                                 data={{ x: 'Used:', y: brokerInfo?.addressMemoryUsed }}
                                 labels={["Used: " + brokerInfo?.addressMemoryUsed.toFixed(2) + "%"]}
                                 name="chart2"
-                                padding={{
-                                    bottom: 20,
-                                    left: 20,
-                                    right: 20,
-                                    top: 20
-                                }}
+                                padding={{ top: 20 }}
                                 subTitle="MiB Used"
                                 title={"" + brokerInfo?.addressMemoryUsage.toFixed(2)}
                                 width={350} />
@@ -243,12 +238,7 @@ export const Status: React.FunctionComponent = () => {
                                 ariaDesc="Disk Used"
                                 ariaTitle="Disk Used"
                                 constrainToVisibleArea
-                                padding={{
-                                    bottom: 20,
-                                    left: 20,
-                                    right: 20,
-                                    top: 20
-                                }}
+                                padding={{ top: 20 }}
                                 data={[
                                     { x: 'Usable at maxDiskUsage%', y: diskSpaceMax },
                                     { x: 'Max at 100%', y: 100 }
