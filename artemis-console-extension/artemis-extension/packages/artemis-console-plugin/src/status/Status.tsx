@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { ChartDonutUtilization } from "@patternfly/react-charts"
+import { ChartDonutUtilization,ChartDonutThreshold } from "@patternfly/react-charts"
 import {
     Alert,
     Card,
@@ -132,6 +132,10 @@ export const Status: React.FunctionComponent = () => {
         setShowOperationsDialog(true);
     }
 
+    const diskSpaceUsed = brokerInfo?.diskStoreUsagePercentage ?? 0;
+    const diskSpaceMax = brokerInfo?.maxDiskUsage ?? 0;
+    const diskSpaceRemaining = diskSpaceMax - diskSpaceUsed;
+
     const statusActions = (
         <Dropdown
             onSelect={onBrokerInfoSelect}
@@ -225,6 +229,47 @@ export const Status: React.FunctionComponent = () => {
                                 subTitle="MiB Used"
                                 title={"" + brokerInfo?.addressMemoryUsage.toFixed(2)}
                                 width={350} />
+                        </CardBody>
+                    </Card>
+                </GridItem>
+                <GridItem span={3} rowSpan={3}>
+                    <Card isFullHeight={true}>
+                        <CardHeader>
+                            <CardTitle>Disk Used</CardTitle>
+                        </CardHeader>
+                        <CardBody>
+                            <Divider />
+                            <ChartDonutThreshold
+                                ariaDesc="Disk Used"
+                                ariaTitle="Disk Used"
+                                constrainToVisibleArea
+                                padding={{
+                                    bottom: 20,
+                                    left: 20,
+                                    right: 20,
+                                    top: 20
+                                }}
+                                data={[
+                                    { x: 'Usable at maxDiskUsage%', y: diskSpaceMax },
+                                    { x: 'Max at 100%', y: 100 }
+                                ]}
+                                labels={[
+                                    `Max disk usage: ${diskSpaceMax}%`,
+                                    `Reserved disk space: ${100 - diskSpaceMax}%`
+                                ]}
+                                name="chart101"
+                                width={350}>
+                                <ChartDonutUtilization
+                                    data={{ x: 'Used:', y: diskSpaceUsed }}
+                                    labels={[
+                                    diskSpaceRemaining < 0
+                                        ? "No space remaining, broker is blocking producers!"
+                                        : `Usable disk space remaining: ${diskSpaceRemaining.toFixed(2)}/${diskSpaceMax}%`
+                                    ]}
+                                    thresholds={[{ value: (diskSpaceMax - 10) }, { value: diskSpaceMax }]} // warning on 10% disk remaining, critical on 0%
+                                    subTitle="Disk Used"
+                                    title={diskSpaceUsed.toFixed(2) + "%"}/>
+                            </ChartDonutThreshold>
                         </CardBody>
                     </Card>
                 </GridItem>
