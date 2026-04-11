@@ -121,17 +121,34 @@ const operationOptions = [
     return 10;
   }
 
+  const initialIsCompact = () => {
+    if (perPage == -1) {
+      return true;
+    } else {
+      return false;
+    }
+  }
+
+  const initialColumns = () => {
+    if (broker.storageColumnLocation) {
+      const savedColumns = artemisPreferencesService.loadColumnPreferences(
+        broker.storageColumnLocation, broker.allColumns
+      );
+      return savedColumns ?? broker.allColumns;
+    }
+    return broker.allColumns;
+  }
+
   const [rows, setRows] = useState([])
   const [resultsSize, setresultsSize] = useState(0)
-  const [columnsLoaded, setColumnsLoaded] = useState(false);
 
-  const [columns, setColumns] = useState(broker.allColumns);
+  const [columns, setColumns] = useState(initialColumns);
   const [activeSort, setActiveSort] = useState(initialActiveSort);
   const [isSortDropdownOpen, setIsSortDropdownOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(initialPerPage);
-  const [isCompact, setIsCompact] = useState(false);
+  const [isCompact, setIsCompact] = useState(initialIsCompact);
   const rootElement = document.getElementById('root') as HTMLElement;
   const popperProps = {
     position: 'right' as const,
@@ -162,17 +179,6 @@ const operationOptions = [
     setRows(data.data);
     setresultsSize(data.count);
   };
-
-  useEffect(() => {
-    if (!columnsLoaded && broker.storageColumnLocation) {
-      const updatedColumns: Column[] = artemisPreferencesService.loadColumnPreferences(broker.storageColumnLocation, broker.allColumns);
-      if (perPage == -1) {
-        setIsCompact(true);
-      }
-      setColumns(updatedColumns);
-      setColumnsLoaded(true);
-    }
-  }, [columnsLoaded]);
 
   useEffect(() => {
     listData();
