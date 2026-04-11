@@ -111,6 +111,16 @@ const operationOptions = [
     };
   }
 
+  const initialPerPage = () => {
+    if (broker.storageColumnLocation) {
+      const savedPerPage = artemisPreferencesService.loadTablePageSize(
+        broker.storageColumnLocation
+      );
+      return savedPerPage ?? 10;
+    }
+    return 10;
+  }
+
   const [rows, setRows] = useState([])
   const [resultsSize, setresultsSize] = useState(0)
   const [columnsLoaded, setColumnsLoaded] = useState(false);
@@ -120,11 +130,8 @@ const operationOptions = [
   const [isSortDropdownOpen, setIsSortDropdownOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(initialPerPage);
   const [isCompact, setIsCompact] = useState(false);
-  const [perPage, setPerPage] = useState(10);
-  const [perPageOption, setPerPageOption] = useState(1);
-  const pageSize = artemisPreferencesService.loadTablePageSize(broker.storageColumnLocation);
-
   const rootElement = document.getElementById('root') as HTMLElement;
   const popperProps = {
     position: 'right' as const,
@@ -159,7 +166,7 @@ const operationOptions = [
   useEffect(() => {
     if (!columnsLoaded && broker.storageColumnLocation) {
       const updatedColumns: Column[] = artemisPreferencesService.loadColumnPreferences(broker.storageColumnLocation, broker.allColumns);
-      if (pageSize == -1) {
+      if (perPage == -1) {
         setIsCompact(true);
       }
       setColumns(updatedColumns);
@@ -228,10 +235,6 @@ const operationOptions = [
   };
 
   const handlePerPageSelect = (_event: React.MouseEvent | React.KeyboardEvent | MouseEvent, newPerPage: number) => {
-    setPerPageOption(newPerPage);
-    if(broker.storageColumnLocation) {
-      artemisPreferencesService.saveTablePageSize(broker.storageColumnLocation, newPerPage)
-    }
     if (newPerPage === -1) {
       setIsCompact(true);
       setPerPage(resultsSize);
@@ -240,6 +243,9 @@ const operationOptions = [
       setPerPage(newPerPage);
     }
     setPage(1);
+    if(broker.storageColumnLocation) {
+      artemisPreferencesService.saveTablePageSize(broker.storageColumnLocation, newPerPage)
+    }
   };
 
   const getKeyByValue = (producer: never, columnName: string) => {
@@ -269,7 +275,7 @@ const operationOptions = [
     <Pagination
       itemCount={resultsSize}
       page={page}
-      perPage={perPageOption}
+      perPage={perPage}
       onSetPage={handleSetPage}
       onPerPageSelect={handlePerPageSelect}
       isCompact={isCompact}
