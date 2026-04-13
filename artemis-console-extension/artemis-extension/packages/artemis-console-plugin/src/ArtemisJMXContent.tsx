@@ -17,7 +17,7 @@
 import { PageGroup, PageSection, PageSectionVariants, Title, Divider, Text, EmptyState, EmptyStateIcon, EmptyStateVariant } from "@patternfly/react-core"
 import { useContext } from "react";
 import { ArtemisContext } from "./context";
-import { CubesIcon } from "@patternfly/react-icons/dist/esm/icons/cubes-icon";
+import { CubesIcon } from "@patternfly/react-icons/dist/esm/icons/cubes-icon.js";
 import './ArtemisJMXContent.css' 
 import { ArtemisJMXTabs } from "./views/ArtemisJMXTabView";
 

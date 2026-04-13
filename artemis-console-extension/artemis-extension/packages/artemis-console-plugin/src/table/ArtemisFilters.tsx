@@ -38,8 +38,6 @@ export const ArtemisFilters: React.FC<ArtemisFiltersProps> = ({ columns, operati
   const [columnOpen, setColumnOpen] = useState(false);
   const [operationOpen, setOperationOpen] = useState(false);
 
-  const visibleColumns = columns.filter(c => c.visible);
-
   const applyFilter = () => {
     const filterValue = searchRef.current?.value ?? "";
     if (filterOperation && filterColumn) {
@@ -66,7 +64,7 @@ export const ArtemisFilters: React.FC<ArtemisFiltersProps> = ({ columns, operati
           selected={filterColumn?.name}
         >
           <SelectList>
-            {visibleColumns.map(column => (
+            {columns.map(column => (
               <SelectOption key={column.id} value={column.name}>{column.name}</SelectOption>
             ))}
           </SelectList>

@@ -16,10 +16,10 @@
  */
 import { ActionGroup, Text, Button, Form, Icon, Modal, ModalVariant, TextContent, Title, Popover } from '@patternfly/react-core';
 import React, { useState } from 'react'
-import { ExclamationCircleIcon } from '@patternfly/react-icons/dist/esm/icons/exclamation-circle-icon';
+import { ExclamationCircleIcon } from '@patternfly/react-icons/dist/esm/icons/exclamation-circle-icon.js';
 import { eventService, jolokiaService, workspace } from '@hawtio/react';
 import { artemisService } from '../artemis-service';
-import { OutlinedQuestionCircleIcon } from '@patternfly/react-icons/dist/esm/icons/outlined-question-circle-icon';
+import { OutlinedQuestionCircleIcon } from '@patternfly/react-icons/dist/esm/icons/outlined-question-circle-icon.js';
 
 type DeleteAddressProps = {
   address: string
