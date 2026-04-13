@@ -4,8 +4,11 @@
   "description": "Artemis Console",
   "license": "Apache-2.0",
   "private": true,
+  "type": "module",
+  "main": "./dist/index.mjs",
+  "module": "./dist/index.mjs",
   "scripts": {
-    "start": "webpack serve --mode development",
+    "start": "webpack serve --mode development --hot --open",
     "build": "webpack --mode production && yarn replace-version && yarn replace-doc-version",
     "replace-version": "replace __PACKAGE_VERSION_PLACEHOLDER__ $npm_package_version ./build/static/js -r --include=\"*.js\"",
     "replace-doc-version": "replace __PACKAGE_VERSION_PLACEHOLDER__ $npm_package_version ./build/hawtconfig.json"

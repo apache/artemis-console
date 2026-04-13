@@ -18,7 +18,7 @@ import { ActionGroup, Button, Form, Modal, ModalVariant, Popover, TextContent, T
 import React, { useState } from 'react'
 import { eventService, jolokiaService, workspace } from '@hawtio/react';
 import { artemisService } from '../artemis-service';
-import { OutlinedQuestionCircleIcon } from '@patternfly/react-icons/dist/esm/icons/outlined-question-circle-icon';
+import { OutlinedQuestionCircleIcon } from '@patternfly/react-icons/dist/esm/icons/outlined-question-circle-icon.js';
 
 type DeleteQueueProps = {
   queue: string

@@ -21,7 +21,7 @@ import { MessagesTable } from '../messages/MessagesTable';
 import { Filter } from '../table/ArtemisTable';
 import { Button, Modal, ModalVariant, TextContent, Title, Text, Icon, TextVariants, TextList, TextListItem, TextListItemVariants, TextListVariants } from '@patternfly/react-core';
 import { Message, MessageView } from '../messages/MessageView';
-import { HelpIcon } from '@patternfly/react-icons/dist/esm/icons/help-icon';
+import { HelpIcon } from '@patternfly/react-icons/dist/esm/icons/help-icon.js';
 import { Link } from 'react-router-dom';
 
 export type QueueNavigate = {

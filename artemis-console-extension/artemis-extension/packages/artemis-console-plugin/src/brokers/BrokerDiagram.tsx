@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 import * as React from 'react';
-import { ClusterIcon } from '@patternfly/react-icons/dist/esm/icons/cluster-icon';
+import { ClusterIcon } from '@patternfly/react-icons/dist/esm/icons/cluster-icon.js';
 
 import {
   ColaLayout,

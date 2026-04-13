@@ -9,8 +9,8 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "require": "./dist/index.js",
-      "default": "./dist/index.js"
+      "require": "./dist/index.mjs",
+      "default": "./dist/index.mjs"
     },
     "./styles": "./dist/index.css",
     "./dist/index.css": "./dist/index.css"
@@ -18,7 +18,7 @@
   "scripts": {
     "build": "tsup --clean && yarn replace-version",
     "test": "jest",
-    "replace-version": "replace __PACKAGE_VERSION_PLACEHOLDER__ $npm_package_version ./dist/index.js"
+    "replace-version": "replace __PACKAGE_VERSION_PLACEHOLDER__ $npm_package_version ./dist/index.mjs"
   },
   "dependencies": {
     "react-split": "^2.0.14",

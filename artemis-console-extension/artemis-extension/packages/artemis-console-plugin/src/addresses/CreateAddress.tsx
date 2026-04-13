@@ -29,7 +29,7 @@ import {
 import React, {useState} from 'react'
 import {artemisService} from '../artemis-service';
 import { eventService, jolokiaService } from '@hawtio/react';
-import {OutlinedQuestionCircleIcon} from '@patternfly/react-icons/dist/esm/icons/outlined-question-circle-icon';
+import {OutlinedQuestionCircleIcon} from '@patternfly/react-icons/dist/esm/icons/outlined-question-circle-icon.js';
 
 interface CreateAddressProps {
     reload: Function

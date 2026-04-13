@@ -19,7 +19,7 @@ import { ActiveSort, ArtemisTable, Column, Filter, ToolbarAction } from '../tabl
 import { Navigate } from '../views/ArtemisTabView.js';
 import { artemisService } from '../artemis-service';
 import { IAction } from '@patternfly/react-table';
-import { ExclamationCircleIcon } from '@patternfly/react-icons/dist/esm/icons/exclamation-circle-icon';
+import { ExclamationCircleIcon } from '@patternfly/react-icons/dist/esm/icons/exclamation-circle-icon.js';
 import { Button, Icon, Modal, ModalVariant, TextContent, Text } from '@patternfly/react-core';
 import { CreateQueue } from '../queues/CreateQueue';
 import { Attributes, eventService, jolokiaService, Operations, workspace } from '@hawtio/react';
