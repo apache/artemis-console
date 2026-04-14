@@ -728,22 +728,22 @@ __metadata:
   linkType: hard
 
 "@hawtio/camel-model-v4_10@npm:@hawtio/camel-model@~4.10.7":
-  version: 4.10.7
-  resolution: "@hawtio/camel-model@npm:4.10.7"
-  checksum: 10c0/a3bab434ef6c89f3d123b75d12bf954c5a4072240ac0a76dd348ad5f81fed0c4aa75f34b064c5dd18a05ed4ad071810d798b52a4bb80f7519f52768d70d9abb7
+  version: 4.10.9
+  resolution: "@hawtio/camel-model@npm:4.10.9"
+  checksum: 10c0/3bac7f43908e859964c330784533820aa390b1a310438c321832055eb39a0aad44f4fcc93f3408240d4bf3f1c0fb3ef9fea8ea033d7ef874ef0e586515efbb59
   languageName: node
   linkType: hard
 
 "@hawtio/camel-model-v4_14@npm:@hawtio/camel-model@~4.14.1":
-  version: 4.14.1
-  resolution: "@hawtio/camel-model@npm:4.14.1"
-  checksum: 10c0/5c4f4d8fe48a0bf3ccee74716245862ca48c13871d8c039ff4cdd16c5712d9b8c5b4e42563dc681094ac385d2443e921222417d7fe950106c56f175d2a304c94
+  version: 4.14.5
+  resolution: "@hawtio/camel-model@npm:4.14.5"
+  checksum: 10c0/6b6ae6c2b89d5f3d0e8e11614ed305e016abaf88902d436869a93d370fc0fc0794625f71f04ffc817cbb243b09eb808c691754f9b2fd249bc45b7375041beb42
   languageName: node
   linkType: hard
 
-"@hawtio/react@npm:^1.12.3":
-  version: 1.12.3
-  resolution: "@hawtio/react@npm:1.12.3"
+"@hawtio/react@npm:1.12.5":
+  version: 1.12.5
+  resolution: "@hawtio/react@npm:1.12.5"
   dependencies:
     "@hawtio/camel-model-v4_10": "npm:@hawtio/camel-model@~4.10.7"
     "@hawtio/camel-model-v4_14": "npm:@hawtio/camel-model@~4.14.1"
@@ -776,7 +776,7 @@ __metadata:
     react: ^17 || ^18
     react-dom: ^17 || ^18
     react-router-dom: ^6.30
-  checksum: 10c0/5a2f59dda77fa2def857c30392905d028d6bfbcb363e432d75978ec2bf7e6969e960108a6add93cdd9d457d59eca6e8347e6c03e90c7cf7d9a72c390f36ab877
+  checksum: 10c0/4d5b95b9acae4837f6287d5547f0c0c73bda66c9cd281e61e7a538b2c011bdbe56b425b096b3b51a9d6f28113d1d092e590d48486fe45e49f8dd0e85e6f5016b
   languageName: node
   linkType: hard
 
@@ -3550,7 +3550,7 @@ __metadata:
   resolution: "artemis-console-app@workspace:app"
   dependencies:
     "@hawtio/backend-middleware": "npm:^1.0.8"
-    "@hawtio/react": "npm:^1.12.3"
+    "@hawtio/react": "npm:1.12.5"
     "@monaco-editor/react": "npm:^4.6.0"
     "@patternfly/react-charts": "npm:^7.4.9"
     "@patternfly/react-code-editor": "npm:^5.4.18"
@@ -3602,7 +3602,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "artemis-console-plugin@workspace:packages/artemis-console-plugin"
   dependencies:
-    "@hawtio/react": "npm:^1.12.3"
+    "@hawtio/react": "npm:1.12.5"
     "@monaco-editor/react": "npm:^4.6.0"
     "@patternfly/react-charts": "npm:^7.4.9"
     "@patternfly/react-code-editor": "npm:^5.4.18"
@@ -7642,10 +7642,17 @@ __metadata:
   languageName: node
   linkType: hard
 
-"jolokia.js@npm:2.4.2, jolokia.js@npm:^2.4.2":
+"jolokia.js@npm:2.4.2":
   version: 2.4.2
   resolution: "jolokia.js@npm:2.4.2"
   checksum: 10c0/d6e80f75dc74eab6b49805c9d05484b5e9a9b666f35452a09085095183fa60a28d75212c2e0a2127b87089ae62666155552785818af1c4606ba0f65b86ce1541
+  languageName: node
+  linkType: hard
+
+"jolokia.js@npm:^2.4.2":
+  version: 2.5.0
+  resolution: "jolokia.js@npm:2.5.0"
+  checksum: 10c0/7a84aa9e23e2bc5f93fcd17d449dfc229f14f24a503c3ca06a0c5e946f873b5f6649bc0073cfe0074a220e8487b1db231d402b568025fd0a4080fba4b4dd8a21
   languageName: node
   linkType: hard
 

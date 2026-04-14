@@ -25,7 +25,7 @@
     "xml-formatter": "^3.6.7"
   },
   "devDependencies": {
-    "@hawtio/react": "^1.12.3",
+    "@hawtio/react": "1.12.5",
     "@monaco-editor/react": "^4.6.0",
     "@patternfly/react-charts": "^7.4.9",
     "@patternfly/react-code-editor": "^5.4.18",
