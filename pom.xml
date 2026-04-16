@@ -44,7 +44,7 @@
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
         <maven.compiler.release>17</maven.compiler.release>
-        <hawtio.version>4.6.2</hawtio.version>
+        <hawtio.version>4.7.0</hawtio.version>
         <jakarta.servlet-api.version>5.0.0</jakarta.servlet-api.version>
         <slf4j.version>2.0.17</slf4j.version>
         <log4j.version>2.25.3</log4j.version>
