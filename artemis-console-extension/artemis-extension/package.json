@@ -44,7 +44,8 @@
     "dompurify": "3.4.0",
     "handlebars": "4.7.9",
     "path-to-regexp": "8.4.0",
-    "picomatch": "2.3.2"
+    "picomatch": "2.3.2",
+    "brace-expansion": "1.1.13"
   },
   "eslintConfig": {
     "extends": [
