@@ -46,7 +46,8 @@
     "path-to-regexp": "8.4.0",
     "picomatch": "2.3.2",
     "brace-expansion": "1.1.13",
-    "follow-redirects": "1.16.0"
+    "follow-redirects": "1.16.0",
+    "uuid": "14.0.0"
   },
   "eslintConfig": {
     "extends": [
