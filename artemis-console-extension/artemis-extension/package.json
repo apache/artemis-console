@@ -45,7 +45,8 @@
     "handlebars": "4.7.9",
     "path-to-regexp": "8.4.0",
     "picomatch": "2.3.2",
-    "brace-expansion": "1.1.13"
+    "brace-expansion": "1.1.13",
+    "follow-redirects": "1.16.0"
   },
   "eslintConfig": {
     "extends": [
