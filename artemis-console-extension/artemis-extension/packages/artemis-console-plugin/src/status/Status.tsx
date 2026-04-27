@@ -46,7 +46,7 @@ import { ExclamationCircleIcon } from '@patternfly/react-icons/dist/esm/icons/ex
 import { OkIcon } from '@patternfly/react-icons/dist/esm/icons/ok-icon'
 import { Attributes, eventService, jolokiaService, Operations } from '@hawtio/react';
 import React, { ReactNode, useContext, useEffect, useState } from "react";
-import { Acceptors, artemisService, BrokerInfo, BrokerState, ClusterConnections } from "../artemis-service";
+import { Acceptors, artemisService, BrokerInfo, BrokerState, ClusterConnections, LockCoordinators } from "../artemis-service";
 import { ArtemisContext } from "../context";
 import { Table, Tbody, Td, Th, Thead, Tr } from "@patternfly/react-table";
 import { LockedIcon } from '@patternfly/react-icons'
@@ -56,6 +56,7 @@ export const Status: React.FunctionComponent = () => {
     const [brokerState, setBrokerState] = useState<BrokerState>({ loaded: false, accessible: false, message: "Loading..." })
     const [brokerInfo, setBrokerInfo] = useState<BrokerInfo>()
     const [acceptors, setAcceptors] = useState<Acceptors>();
+    const [lockCoordinators, setLockCoordinators] = useState<LockCoordinators>();
     const [clusterConnections, setClusterConnections] = useState<ClusterConnections>()
     const { findAndSelectNode } = useContext(ArtemisContext)
 
@@ -86,6 +87,16 @@ export const Status: React.FunctionComponent = () => {
             });
     }
 
+    const getLockCoordinators = async () => {
+        artemisService.createLockCoordinators()
+            .then((lockCoordinators) => {
+                setLockCoordinators(lockCoordinators)
+            })
+            .catch((error) => {
+                eventService.notify({type: 'warning', message: jolokiaService.errorMessage(error) })
+            });
+    }
+
     const getClusterConnections = async () => {
         artemisService.createClusterConnections()
             .then((clusterConnections) => {
@@ -101,6 +112,8 @@ export const Status: React.FunctionComponent = () => {
         getBrokerInfo();
 
         getAcceptors();
+
+        getLockCoordinators();
 
         getClusterConnections();
 
@@ -271,6 +284,38 @@ export const Status: React.FunctionComponent = () => {
                     </Card>
                 </GridItem>
             </Grid>
+            {lockCoordinators && lockCoordinators.lockCoordinators.length > 0 &&
+            <ExpandableSection toggleTextExpanded="Lock Coordinators" toggleTextCollapsed="Lock Coordinators">
+                <Grid hasGutter span={4}>
+                    <GridItem span={6} rowSpan={3}>
+                        <Card isFullHeight={true} >
+                            <CardBody>
+                                <Divider />
+                                <Table>
+                                    <Thead>
+                                        <Tr>
+                                            <Th>Name</Th>
+                                            <Th>ID</Th>
+                                            <Th>Status</Th>
+                                        </Tr>
+                                    </Thead>
+                                    <Tbody>
+                                        {
+                                            lockCoordinators?.lockCoordinators.map((coordinator, index) => {
+                                                return <Tr>
+                                                    <Td>{coordinator.name}</Td>
+                                                    <Td>{coordinator.lockId}</Td>
+                                                    <Td>{coordinator.status}</Td>
+                                                </Tr>
+                                            })
+                                        }
+                                    </Tbody>
+                                </Table>
+                            </CardBody>
+                        </Card>
+                    </GridItem>
+                </Grid>
+            </ExpandableSection>}
             <ExpandableSection toggleTextExpanded="Acceptors" toggleTextCollapsed="Acceptors">
                 <Grid hasGutter span={4}>
                     {

@@ -97,6 +97,20 @@ export type Acceptors = {
     acceptors: Acceptor[]
 }
 
+export type LockCoordinator = {
+    name: string
+    lockId: string
+    className: string
+    simpleName: string
+    locked: boolean
+    started: boolean
+    status: string
+}
+
+export type LockCoordinators = {
+    lockCoordinators: LockCoordinator[]
+}
+
 export type ClusterConnection = {
     Started: boolean
     Address: string
@@ -164,7 +178,8 @@ const DESTROY_QUEUE_SIG = "destroyQueue(java.lang.String)";
 const REMOVE_ALL_MESSAGES_SIG = "removeAllMessages()";
 const CLOSE_CONNECTION_SIG = "closeConnectionWithID(java.lang.String)";
 const CLOSE_SESSION_SIG = "closeSessionWithID(java.lang.String,java.lang.String)";
-const CLOSE_CONSUMER_SIG = "closeConsumerWithID(java.lang.String,java.lang.String)"
+const CLOSE_CONSUMER_SIG = "closeConsumerWithID(java.lang.String,java.lang.String)";
+const LIST_LOCK_MANAGER_SIG = "listLockCoordinatorsAsJSON()";
 
 const MS_PER_SEC = 1000;
 const MS_PER_MIN = 60 * MS_PER_SEC;
@@ -356,6 +371,36 @@ class ArtemisService {
         });
     }
 
+    async createLockCoordinators(): Promise<LockCoordinators> {
+        return new Promise<LockCoordinators>(async (resolve, reject) => {
+            const lockCoordinators: LockCoordinators = {
+                lockCoordinators: []
+            };
+            const brokerObjectName = await this.getBrokerObjectName();
+            const brokerMBean = await findMBeanInfo(brokerObjectName);
+            const doesListLockCoordinatorMethodExist = this.doesListLockCoordinatorMethodExist(brokerMBean as MBeanNode)
+            if (!doesListLockCoordinatorMethodExist) {
+                console.log("Lock Coordinators not available in this broker version");
+                resolve(lockCoordinators);
+            } else if(this.canListLockCoordinators(brokerMBean as MBeanNode)) {
+                const lockCoordinatorString = await jolokiaService.execute(brokerObjectName, LIST_LOCK_MANAGER_SIG).catch(error => {
+                    eventService.notify({ type: "warning", message: jolokiaService.errorMessage(error) })
+                    return "[]"
+                }) as string;
+                if (lockCoordinatorString) {
+                    lockCoordinators.lockCoordinators = JSON.parse(lockCoordinatorString);
+                    console.info("resolved " + lockCoordinators);
+                    console.info("from " + lockCoordinatorString);
+                    resolve(lockCoordinators);
+                }
+
+            } else {
+                console.info("oops")
+                resolve(lockCoordinators);
+            }
+            reject("invalid response:")
+        });
+    }
     async createAcceptors(): Promise<Acceptors> {
         return new Promise<Acceptors>(async (resolve, reject) => {
             const brokerObjectName = await this.brokerObjectName;
@@ -755,6 +800,9 @@ class ArtemisService {
         return (this.DEBUG_PRIVS && queueMBean?.hasInvokeRights(SEND_MESSAGE_SIG)) ?? false;
     }
 
+    canListLockCoordinators = (brokerMBean: MBeanNode | undefined): boolean => {
+        return (this.DEBUG_PRIVS && brokerMBean?.hasInvokeRights(LIST_LOCK_MANAGER_SIG)) ?? false;
+    }
     canBrowseQueue = (broker: MBeanNode | undefined, queue: string): boolean => {
         if(broker) {
             const queueMBean = broker.parent?.find(node => { 
@@ -808,6 +856,10 @@ class ArtemisService {
             return queueMBean?queueMBean.hasOperations(method): false;
         }
         return false;
+    }
+
+    doesListLockCoordinatorMethodExist = (broker: MBeanNode | undefined): boolean => {
+        return broker?broker.hasOperations("listLockCoordinatorsAsJSON"): false;
     }
 
     canListConnections = (broker: MBeanNode | undefined): boolean => {
