@@ -80,6 +80,7 @@ describe('Status', () => {
       ...mockBrokerState
     })
     ;(artemisService.createAcceptors as jest.Mock).mockResolvedValue({ acceptors: [] })
+    ;(artemisService.createLockCoordinators as jest.Mock).mockResolvedValue({ lockCoordinators: [] })
     ;(artemisService.createClusterConnections as jest.Mock).mockResolvedValue({ clusterConnections: [] })
     ;(artemisService.getBrokerObjectName as jest.Mock).mockResolvedValue('org.apache.activemq.artemis:broker=127.0.0.1')
   })
