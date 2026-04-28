@@ -62,13 +62,15 @@ frontend project itself in development mode with `yarn start` or `npm run start`
 Start the plugin project in development mode with yarn:
 
 ```console
-yarn --cwd artemis-console-extension/artemis-extension/app start
+cd artemis-console-extension/artemis-extension/app
+yarn start
 ```
 
 or with npm:
 
 ```console
-npm start --prefix artemis-console-extension/artemis-extension/app
+cd artemis-console-extension/artemis-extension/app
+npm start
 ```
 
 Now you should be able to preview the plugins under development at <http://localhost:8080/console/>. However, since it still
