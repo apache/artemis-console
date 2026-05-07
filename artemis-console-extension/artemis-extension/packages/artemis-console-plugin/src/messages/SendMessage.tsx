@@ -35,20 +35,16 @@ import {
   Checkbox,
   Tooltip,
   Popover,
-  TextContent
+  TextContent,
+  TextArea
 } from '@patternfly/react-core'
 import { OutlinedQuestionCircleIcon } from '@patternfly/react-icons/dist/esm/icons/outlined-question-circle-icon'
 import { InfoCircleIcon } from '@patternfly/react-icons/dist/esm/icons/info-circle-icon'
 import { TrashIcon } from '@patternfly/react-icons/dist/esm/icons/trash-icon'
-import { CodeEditor, Language } from '@patternfly/react-code-editor'
+import { Language } from '@patternfly/react-code-editor'
 import { eventService, jolokiaService } from '@hawtio/react'
 import { artemisService } from '../artemis-service'
 import { Message } from './MessageView'
-
-import * as monacoEditor from 'monaco-editor'
-import { loader } from '@monaco-editor/react'
-
-loader.config({ monaco: monacoEditor })
 
 type SendBodyMessageProps = {
   onBodyChange: (body: string) => void
@@ -67,24 +63,16 @@ const MessageBody: React.FunctionComponent<SendBodyMessageProps> = props => {
   const [messageBody, setMessageBody] = useState<string>(props.body?props.body:'')
   const [selectedFormat, setSelectedFormat] = useState<Language>(Language.xml)
   const [isDropdownOpen, setDropdownOpen] = useState(false)
-  const editorRef = useRef<monacoEditor.editor.IStandaloneCodeEditor | null>(null)
-
-  const editorDidMount = (editor: monacoEditor.editor.IStandaloneCodeEditor) => {
-    editorRef.current = editor
-  }
 
   const handleAutoFormat = () => {
-    if (editorRef.current) {
-      const model = editorRef.current.getModel()
-      if (model) {
-        if (selectedFormat === Language.xml) {
-          //monaco doesn't have built in xml formatter
-          updateMessageBody(xmlFormat(messageBody))
-        } else {
-          const range = model.getFullModelRange()
-          editorRef.current.trigger('', 'editor.action.formatDocument', { range })
-        }
-      }
+    try {
+      if (selectedFormat === Language.xml) {
+        updateMessageBody(xmlFormat(messageBody))
+      } else if (selectedFormat === Language.json) {
+        updateMessageBody(JSON.stringify(JSON.parse(messageBody), null, 2))
+       }
+    } catch {
+      // ignore formatting errors
     }
   }
 
@@ -104,13 +92,11 @@ const MessageBody: React.FunctionComponent<SendBodyMessageProps> = props => {
   return (
     <>
       <FormGroup label='Message'>
-        <CodeEditor
-          code={messageBody}
-          onEditorDidMount={editorDidMount}
-          language={selectedFormat}
-          height={'300px'}
-          onChange={updateMessageBody}
-        />
+        <TextArea
+          value={messageBody}
+          onChange={(_event, value) => updateMessageBody(value)}
+          rows={12}
+         />
       </FormGroup>
       <FormGroup>
         <Flex>
