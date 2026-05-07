@@ -51,7 +51,7 @@ svg text {
 }
 
 svg.pf-v5-svg {
-  fill: #714099;
+  fill: var(--artemis-global--primary-color--100);
 }
 
 .pf-topology__node.artemisBroker.pf-m-info .pf-topology__node__background {
@@ -294,6 +294,11 @@ background-color: var(--artemis-global--primary-color--300);
   --artemis-global--primary-color--400: #9989a7; 
   --artemis-global--primary-color-dark: #714099;
   --artemis-global--primary-second-color-100: #2b326e;
+  --artemis-global--primary-color-dark--100: #d9c8e6;
+  --artemis-global--primary-color-dark--200: #daabfd; 
+  --artemis-global--primary-color-dark--300: #b578ea; 
+  --artemis-global--primary-color-dark--400: #9989a7; 
+  --artemis-global--primary-color-dark-dark: #cdbbdc;
   --artemis-diag-broker-color: #714099;
   --artemis-diag-broker-border:#200734;
   --artemis-diag-broker-label-text:#fff;
@@ -328,11 +333,36 @@ background-color: var(--artemis-global--primary-color--300);
   --pf-v5-global--link--Color--dark: var(--artemis-global--primary-color--100);
   --pf-v5-global--link--Color--light: var(--artemis-global--primary-color--300);
   --pf-v5-global--link--Color--light--hover: var(--artemis-global--primary-color--400);
+  --pf-v5-global--disabled-color--100: var(--artemis-global--primary-color-dark--200);
   /** icon inside broker diagram */
   --pf-v5-topology__node--Color: var(--artemis-global--primary-color--100);
   --pf-v5-c-page__sidebar--Width: 10em;
 }
 
 .pf-v5-theme-dark {
+  --pf-v5-global--active-color--100: var(--artemis-global--primary-color-dark--200);
+  --pf-v5-global--active-color--200:var(--artemis-global--primary-color-dark--200);
+  --pf-v5-global--active-color--300: var(--artemis-global--primary-color-dark--300);
+  --pf-v5-global--active-color--400: var(--artemis-global--primary-color-dark--400);
   --pf-v5-chart-donut--label--title--Fill: var(--artemis-diag-broker-label-text);
+  --pf-v5-global--primary-color--100: var(--artemis-global--primary-color-dark--100);
+  --pf-v5-global--primary-color--200: var(--artemis-global--primary-color-dark--200);
+  --pf-v5-global--primary-color--light-100: var(--artemis-global--primary-color-dark--100);
+  --pf-v5-global--primary-color--dark-100: var(--artemis-global--primary-color-dark--100);
+  --pf-v5-global--link--Color--hover: var(--artemis-global--primary-second-color-100);
+  --pf-v5-global--link--Color: var(--artemis-global--primary-color-dark--200);
+  --pf-v5-global--link--Color--dark: var(--artemis-global--primary-color-dark--200);
+  --pf-v5-global--link--Color--light: var(--artemis-global--primary-color-dark--300);
+  --pf-v5-global--link--Color--light--hover: var(--artemis-global--primary-color--dark-400);
+  --pf-v5-global--disabled-color--100: var(--artemis-global--primary-color-dark--200);
+  svg.pf-v5-svg {
+    fill: var(--artemis-global--primary-color-dark--200);
+  }
+  .pf-v5-c-expandable-section__toggle {
+    display: flex;
+    padding: var(--pf-v5-c-expandable-section__toggle--PaddingTop) var(--pf-v5-c-expandable-section__toggle--PaddingRight) var(--pf-v5-c-expandable-section__toggle--PaddingBottom) var(--pf-v5-c-expandable-section__toggle--PaddingLeft);
+    margin-top: var(--pf-v5-c-expandable-section__toggle--MarginTop);
+    color: var(--artemis-global--primary-color-dark--100);
+    border: none;
+  }
 }
