@@ -223,6 +223,7 @@ module.exports = (webpackEnv, args) => {
       alias: {
         'artemis-console-plugin': path.resolve(__dirname, '../packages/artemis-console-plugin/src'),
         '@thumbmarkjs/thumbmarkjs': path.join(__dirname, '../node_modules/@thumbmarkjs/thumbmarkjs/dist/thumbmark.esm.js'),
+        'monaco-editor': false,
       },
     },
     optimization: isEnvProduction ? {
