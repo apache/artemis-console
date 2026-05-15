@@ -28,17 +28,30 @@ github:
     - ui
   enabled_merge_buttons:
     # disable squash button:
-    squash:  false
+    squash: false
     # disable merge button:
-    merge:   false
+    merge: false
     # enable rebase button:
-    rebase:  true
+    rebase: true
   autolink_jira:
     - ARTEMIS
-  dependabot_alerts:  true
+  dependabot_alerts: true
   dependabot_updates: true
+  rulesets:
+    - name: "Default Branch Protection"
+      type: branch
+      branches:
+        includes:
+          - "~DEFAULT_BRANCH"
+          - "release/*"
+          - "rel/*"
+        excludes: []
+      bypass_teams:
+        - root
+      restrict_deletion: true
+      restrict_force_push: true
 notifications:
-  commits:      commits@artemis.apache.org
-  issues:       issues@artemis.apache.org
+  commits: commits@artemis.apache.org
+  issues: issues@artemis.apache.org
   pullrequests: issues@artemis.apache.org
   jira_options: link label worklog
