@@ -29,7 +29,7 @@
     "serialize-javascript": "7.0.5",
     "tough-cookie": "5.1.2",
     "webpack": "5.105.2",
-    "ws": "8.20.1",
+    "ws": "8.21.0",
     "js-yaml": "3.14.2",
     "mdast-util-to-hast": "13.2.1",
     "glob": "10.5.0",
