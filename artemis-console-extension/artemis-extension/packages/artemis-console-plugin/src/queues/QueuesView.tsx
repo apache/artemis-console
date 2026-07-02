@@ -14,10 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React, { useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { Navigate } from '../views/ArtemisTabView';
 import { QueuesTable } from './QueuesTable';
-import { MessagesTable } from '../messages/MessagesTable';
+import { MessagesTable, MessagesTableHandle } from '../messages/MessagesTable';
 import { Filter } from '../table/ArtemisTable';
 import { Button, Modal, ModalVariant, TextContent, Title, Text, Icon, TextVariants, TextList, TextListItem, TextListItemVariants, TextListVariants } from '@patternfly/react-core';
 import { Message, MessageView } from '../messages/MessageView';
@@ -42,10 +42,6 @@ export type Queue = {
   routingType: string
 }
 
-
-
-
-
 export const QueuesView: React.FunctionComponent<Navigate> = navigate => {
   const initialMessage: Message = {
     messageID: '',
@@ -62,10 +58,19 @@ export const QueuesView: React.FunctionComponent<Navigate> = navigate => {
     userID: ''
   };
 
-  const [ activeTabKey, setActiveTabKey ] = useState<string | number>(0);
-  const [ currentQueue, setCurrentQueue ] = useState<Queue>({name: "", address: "", routingType: "ANYCAST"});
-  const [ currentMessage, setCurrentMessage ] = useState<Message>(initialMessage);
-  const [ showHelpModal, setShowHelpModal ] = useState(false);
+  const [activeTabKey, setActiveTabKey] = useState<string | number>(0);
+  const [currentQueue, setCurrentQueue] = useState<Queue>({name: "", address: "", routingType: "ANYCAST"});
+  const [currentMessage, setCurrentMessage] = useState<Message>(initialMessage);
+  const [showHelpModal, setShowHelpModal] = useState(false);
+
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [totalMessages, setTotalMessages] = useState(0);
+  const messagesTableRef = useRef<MessagesTableHandle>(null);
+
+  const handleTotalCountChange = (count: number) => {
+    setTotalMessages(count);
+    setCurrentIndex(prev => (prev >= count ? Math.max(0, count - 1) : prev));
+  };
 
   const selectQueue = (queue: string, address: string, routingType: string) => {
     setCurrentQueue({
@@ -76,13 +81,58 @@ export const QueuesView: React.FunctionComponent<Navigate> = navigate => {
     setActiveTabKey(1);
   }
 
-  const selectMessage = (message: Message) => {
+  const selectMessage = (message: Message, globalIndex: number, totalCount: number) => {
     setCurrentMessage(message);
+    setCurrentIndex(globalIndex);
+    setTotalMessages(totalCount);
     setActiveTabKey(2);
   }
 
+  const nextMessage = async () => {
+    const newIndex = currentIndex + 1;
+    if (!messagesTableRef.current || newIndex >= totalMessages) return;
+    const result = await messagesTableRef.current.fetchMessageAt(newIndex);
+    setTotalMessages(result.totalCount);
+    if (result.message) {
+      setCurrentIndex(newIndex);
+      setCurrentMessage(result.message);
+    } else {
+      // that message is gone (deleted) — try the new last valid index instead
+      const clamped = Math.min(newIndex, result.totalCount - 1);
+      if (clamped >= 0 && clamped !== currentIndex) {
+        const retry = await messagesTableRef.current.fetchMessageAt(clamped);
+        if (retry.message) {
+          setCurrentIndex(clamped);
+          setCurrentMessage(retry.message);
+        }
+        setTotalMessages(retry.totalCount);
+      }
+    }
+  }
+
+  const previousMessage = async () => {
+    const newIndex = currentIndex - 1;
+    if (!messagesTableRef.current || newIndex < 0) return;
+    const result = await messagesTableRef.current.fetchMessageAt(newIndex);
+    setTotalMessages(result.totalCount);
+    if (result.message) {
+      setCurrentIndex(newIndex);
+      setCurrentMessage(result.message);
+    } else {
+      const clamped = Math.max(0, Math.min(newIndex, result.totalCount - 1));
+      if (clamped !== currentIndex) {
+        const retry = await messagesTableRef.current.fetchMessageAt(clamped);
+        if (retry.message) {
+          setCurrentIndex(clamped);
+          setCurrentMessage(retry.message);
+        }
+        setTotalMessages(retry.totalCount);
+      }
+    }
+  }
+
   const back = (tab: number) => {
-      setActiveTabKey(tab);
+    setActiveTabKey(tab);
   }
 
   return (
@@ -90,16 +140,25 @@ export const QueuesView: React.FunctionComponent<Navigate> = navigate => {
         {activeTabKey === 0 &&
           <QueuesTable search={navigate.search} filter={navigate.filter} selectQueue={selectQueue}/>
         }
-        {activeTabKey === 1 &&
-        <>
-        <Title headingLevel='h2'>Browsing {currentQueue.name + ' '} <Icon status="info"><HelpIcon  onClick={() => setShowHelpModal(true)}/></Icon></Title>
-        <MessagesTable address={currentQueue.address} queue={currentQueue.name} routingType={currentQueue.routingType} selectMessage={selectMessage} back={back}/>
-        </>
+        {activeTabKey !== 0 &&
+          <div style={{ display: activeTabKey === 1 ? 'block' : 'none' }}>
+            <Title headingLevel='h2'>Browsing {currentQueue.name + ' '} <Icon status="info"><HelpIcon onClick={() => setShowHelpModal(true)}/></Icon></Title>
+            <MessagesTable ref={messagesTableRef} address={currentQueue.address} queue={currentQueue.name} routingType={currentQueue.routingType} selectMessage={selectMessage} onTotalCountChange={handleTotalCountChange} back={back}/>
+          </div>
         }
         {activeTabKey === 2 &&
         <>
         <Title headingLevel='h2'>Viewing Message on {currentQueue.name}</Title>
-        <MessageView currentMessage={currentMessage} back={back}/>
+        <MessageView
+          currentMessage={currentMessage}
+          back={back}
+          onNext={nextMessage}
+          onPrevious={previousMessage}
+          hasNext={currentIndex < totalMessages - 1}
+          hasPrevious={currentIndex > 0}
+          currentIndex={currentIndex}
+          totalCount={totalMessages}
+        />
         </>
         }
         <Modal aria-label='copy-message-modal'
