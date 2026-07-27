@@ -297,15 +297,41 @@ export const Status: React.FunctionComponent = () => {
                                             <Th>Name</Th>
                                             <Th>ID</Th>
                                             <Th>Status</Th>
+                                            <Th></Th>
                                         </Tr>
                                     </Thead>
                                     <Tbody>
                                         {
                                             lockCoordinators?.lockCoordinators.map((coordinator, index) => {
-                                                return <Tr>
+                                                return <Tr key={index}>
                                                     <Td>{coordinator.name}</Td>
                                                     <Td>{coordinator.lockId}</Td>
                                                     <Td>{coordinator.status}</Td>
+                                                    <Td>
+                                                        {coordinator.status === 'Stopped' ? (
+                                                            <Button variant="primary" size="sm" onClick={() => {
+                                                                artemisService.startLockCoordinator(coordinator.name)
+                                                                    .then(() => {
+                                                                        eventService.notify({ type: 'success', message: 'Lock Coordinator ' + coordinator.name + ' started', duration: 3000 });
+                                                                        getLockCoordinators();
+                                                                    })
+                                                                    .catch((error) => {
+                                                                        eventService.notify({ type: 'danger', message: 'Failed to start Lock Coordinator: ' + jolokiaService.errorMessage(error) });
+                                                                    });
+                                                            }}>Start</Button>
+                                                        ) : (
+                                                            <Button variant="secondary" size="sm" onClick={() => {
+                                                                artemisService.stopLockCoordinator(coordinator.name)
+                                                                    .then(() => {
+                                                                        eventService.notify({ type: 'success', message: 'Lock Coordinator ' + coordinator.name + ' stopped', duration: 3000 });
+                                                                        getLockCoordinators();
+                                                                    })
+                                                                    .catch((error) => {
+                                                                        eventService.notify({ type: 'danger', message: 'Failed to stop Lock Coordinator: ' + jolokiaService.errorMessage(error) });
+                                                                    });
+                                                            }}>Stop</Button>
+                                                        )}
+                                                    </Td>
                                                 </Tr>
                                             })
                                         }

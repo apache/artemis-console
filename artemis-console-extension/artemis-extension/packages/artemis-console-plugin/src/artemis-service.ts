@@ -180,6 +180,8 @@ const CLOSE_CONNECTION_SIG = "closeConnectionWithID(java.lang.String)";
 const CLOSE_SESSION_SIG = "closeSessionWithID(java.lang.String,java.lang.String)";
 const CLOSE_CONSUMER_SIG = "closeConsumerWithID(java.lang.String,java.lang.String)";
 const LIST_LOCK_MANAGER_SIG = "listLockCoordinatorsAsJSON()";
+const START_LOCK_COORDINATOR_SIG = "startLockCoordinator(java.lang.String)";
+const STOP_LOCK_COORDINATOR_SIG = "stopLockCoordinator(java.lang.String)";
 
 const MS_PER_SEC = 1000;
 const MS_PER_MIN = 60 * MS_PER_SEC;
@@ -652,6 +654,14 @@ class ArtemisService {
 
     async closeConsumer(session: string, name: string) {
         return jolokiaService.execute(await this.getBrokerObjectName(), CLOSE_CONSUMER_SIG, [session, name]);
+    }
+
+    async startLockCoordinator(name: string) {
+        return jolokiaService.execute(await this.getBrokerObjectName(), START_LOCK_COORDINATOR_SIG, [name]);
+    }
+
+    async stopLockCoordinator(name: string) {
+        return jolokiaService.execute(await this.getBrokerObjectName(), STOP_LOCK_COORDINATOR_SIG, [name]);
     }
 
     async getBrokerObjectName() {
