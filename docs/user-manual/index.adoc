@@ -18,7 +18,18 @@ By default, the console is integrated into Apache Artemis.
 Refer to the https://artemis.apache.org/components/artemis/documentation/latest/management-console.html#login[Apache Artemis documentation] for how to login.
 Once logged in, check out how to <<#using-the-console,use the console>>.
 
-=== Deploying in Jetty
+=== Deploying Standalone
+
+The web console is distributed as a https://en.wikipedia.org/wiki/WAR_(file_format)[WAR file].
+This file is useless by itself.
+It must be deployed using some kind of https://en.wikipedia.org/wiki/Web_container[servlet container].
+
+For *development* purposes we've included instructions for a basic deployment using Jetty and Tomcat.
+These instructions are for local deployment only (i.e. on `localhost`) and explicitly disable security.
+
+For production deployments please refer to the instructions and follow the best practices of your particular servlet container.
+
+==== Deploying in Jetty
 
 Install https://jetty.org/download.html[Jetty 12] and make sure to add the modules `http` and `ee10-deploy`.
 See the
@@ -45,39 +56,37 @@ You can then start Jetty using the following command:
 $ java -Dhawtio.authenticationEnabled=false -jar $JETTY_HOME/start.jar
 ----
 
-NOTE: Since this is only running the Connect plugin Hawtio authentication is disabled. Authentication will take place on connection to the Artemis Broker.
+include::_security-warning.adoc[]
 
-Connect a browser to http://localhost:8080/console or the URL you configured for Jetty.
+Connect a browser to `http://localhost:8080/console`.
 
-The <<#connecting-to-a-broker,connecting>> section explains how to connect to a running broker.
+The <<#connecting-to-a-broker,connecting>> section explains how to connect the web console to a running broker.
 
 For full information on deploying applications in Jetty see https://jetty.org/docs/jetty/12/operations-guide/index.html[The Operations Guide]
 
-=== Deploying in Tomcat
+==== Deploying in Tomcat
 
 Firstly you will need to install https://tomcat.apache.org/download-10.cgi[Tomcat Version 10].
 
 There are many ways to deploy a *WAR* file using Tomcat. The https://tomcat.apache.org/tomcat-10.1-doc[Tomcat Documentation] explains this in detail.
 
-You will need to make sure  that the context path for the console is configured to be `/console`, if the war were configured in
-the tomcat `server.xml` this would look like:
+You will need to make sure  that the context path for the console is configured to be `/console`, if the war were configured in the Tomcat `server.xml` this would look like:
 
 [,xml]
 ----
 <Context path="/console" docBase="/myapps/artemis-console-war.war"/>
 ----
 
-Since the console only deploys the `connect` plugin authentication by hawtio is done on connecting to the Artemis Broker
-you can disable authentication by setting the property:
-
 [,console]
 ----
 export CATALINA_OPTS="-Dhawtio.authenticationEnabled=false"
 ----
 
-Once Tomcat is started connect a browser to http://localhost:8080/console or the URL you configured for tomcat.
+include::_security-warning.adoc[]
 
-The <<#connecting-to-a-broker,connecting>> section explains how to connect to a running broker.
+Once Tomcat is started connect a browser to `http://localhost:8080/console`.
+
+The <<#connecting-to-a-broker,connecting>> section explains how to connect the web console to a running broker.
 
 === Running from the Command Line (JBang)
 

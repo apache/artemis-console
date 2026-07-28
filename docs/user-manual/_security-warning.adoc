@@ -1,0 +1,8 @@
+[WARNING]
+====
+Security for the servlet container will be completely disabled when using this configuration.
+Use this for *development purposes only*.
+
+By default, the servlet container will only listen for connections on `localhost`.
+Do not change this unless you also enable security according to the best practices of the servlet container.
+====
