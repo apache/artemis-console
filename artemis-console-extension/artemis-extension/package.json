@@ -44,7 +44,7 @@
     "dompurify": "3.4.12",
     "handlebars": "4.7.9",
     "picomatch": "2.3.2",
-    "brace-expansion": "1.1.17",
+    "brace-expansion": "1.1.18",
     "follow-redirects": "1.16.0",
     "uuid": "14.0.0",
     "fast-uri": "3.1.3",
