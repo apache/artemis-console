@@ -14,24 +14,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Column } from "./table/ArtemisTable"
+import { TableColumn } from "./table/types"
 
 const PAGE_SIZE = ".pageSize";
 
-export const columnStorage = {
-  queues: "queuesColumnDefs",
-  addresses: "addressesColumnDefs",
+/** Keys for `<ArtemisTabs>` screens to store configuration for filters (in order of appearance) */
+export const columnStorage: Record<string, string> = {
   connections: "connectionsColumnDefs",
-  consumers: "consumerColumnDefs",
-  producers: "producerColumnDefs",
   sessions: "sessionsColumnDefs",
+  producers: "producerColumnDefs",
+  consumers: "consumerColumnDefs",
+  addresses: "addressesColumnDefs",
+  queues: "queuesColumnDefs",
   messages: "messagesColumnDefs"
 }
+
 export interface IArtemisPreferencesService {
   loadArtemisPreferences(): ArtemisOptions
   saveArtemisPreferences(newValues: Partial<ArtemisOptions>): void
-  loadColumnPreferences(storageLocation: string, columns: Column[]): Column[]
-  saveColumnPreferences(storageLocation: string, columns: Column[]): void
+  loadColumnPreferences(storageLocation: string, columns: TableColumn[]): TableColumn[]
+  saveColumnPreferences(storageLocation: string, columns: TableColumn[]): void
 }
 
 export type ArtemisOptions = {
@@ -66,7 +68,7 @@ class ArtemisPreferencesService implements IArtemisPreferencesService {
     localStorage.setItem(STORAGE_KEY_ARTEMIS_PREFERENCES, JSON.stringify(preferencesToSave))
   }
 
-  loadColumnPreferences(storageLocation: string, columns: Column[]): Column[] {
+  loadColumnPreferences(storageLocation: string, columns: TableColumn[]): TableColumn[] {
     const localStorageData = localStorage.getItem(storageLocation);
     if (localStorageData) {
       const data = JSON.parse(localStorageData);
@@ -76,11 +78,11 @@ class ArtemisPreferencesService implements IArtemisPreferencesService {
           column.visible = def.visible as boolean;
         }
       })
-    };
+    }
     return columns;
   }
 
-  saveColumnPreferences(storageLocation: string, columns: Column[]) {
+  saveColumnPreferences(storageLocation: string, columns: TableColumn[]) {
     const data: { name: string; visible: boolean }[] = [];
     columns.forEach(column => { data.push({ name: column.id, visible: column.visible }) });
     localStorage.setItem(storageLocation, JSON.stringify(data));

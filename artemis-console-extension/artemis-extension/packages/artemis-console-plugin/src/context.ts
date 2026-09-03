@@ -15,78 +15,96 @@
  * limitations under the License.
  */
 import { eventService, EVENT_REFRESH,MBeanNode, MBeanTree, PluginNodeSelectionContext, workspace } from "@hawtio/react";
-import { createContext, useContext, useEffect, useRef, useState } from "react";
-import { useNavigate } from 'react-router-dom'
-import { artemisPluginName } from "./globals";
+import { createContext, startTransition, useCallback, useContext, useEffect, useRef, useState } from "react";
+import { type To, useLocation, useNavigate, useSearchParams } from 'react-router'
+import { artemisJMXPluginPath, artemisPluginName, PARAM_KEY_NODE_ID } from "./globals";
 import { configManager } from "./config-manager";
-  
+
 /**
  * Custom React hook for using the Artemis MBean tree.
  */
 export function useArtemisTree() {
-
-    const [tree, setTree] = useState(MBeanTree.createEmpty(artemisPluginName))
-    const [loaded, setLoaded] = useState(false)
-    const [brokerNode, setBrokerNode] = useState<MBeanNode>(); 
+    // the top-level state declared at HawtioPage level which contains global "selected node" state
+    // this is shared with other plugins using the tree
     const { selectedNode, setSelectedNode } = useContext(PluginNodeSelectionContext)
-    const navigate = useNavigate();
 
-    const refSelectedNode = useRef<MBeanNode | null>()
-    refSelectedNode.current = selectedNode
+    // Camel plugin specific state containing the partial Jmx tree available outside the React state
+    const [tree, setTree] = useState(MBeanTree.createEmpty(artemisPluginName))
+    // tree loading may happen in the background and "loaded" reflects the state of (re)load
+    const [loaded, setLoaded] = useState(false)
 
-    const populateTree = async () => {
-        const wkspTree: MBeanTree = await workspace.getTree();
+    // hooks from React Router to synchronize selected node with `nid` query parameter (in both directions)
+    const { search } = useLocation()
+    const navigate = useNavigate()
+
+    const [brokerNode, setBrokerNode] = useState<MBeanNode>();
+    const [jmxDomain, setJmxDomain] = useState<string>();
+
+    const artemisDomain = useRef<MBeanNode | null>(null)
+
+    // Normally (as with global Jmx tree) we just need to call `await workspace.getTree()`, but
+    // with Artemis JMX, we need a subtree from the Artemis JMX domain
+    const populateTree = useCallback(async (): Promise<MBeanTree | null> => {
+        const wkspTree: MBeanTree = await workspace.getTree()
         const config = await configManager.getArtemisconfig();
-        const rootNode = wkspTree.find(node => node.name === config.jmx.domain)
-        if (rootNode && rootNode.children && rootNode.children.length > 0) {
-            if (rootNode.children[0].objectName) {
-                rootNode.children[0].addMetadata("type", "brokerType");
-                setBrokerNode(rootNode.children[0]);
-            }
-            // Expand the nodes to redisplay the path
-            if (refSelectedNode.current) {
-                let curr: MBeanNode | null = refSelectedNode.current
-                while (curr) {
-                    curr.defaultExpanded = true
-                    curr = curr.parent
-                }
-            }
-            const subTree: MBeanTree = MBeanTree.createFromNodes(artemisPluginName, [rootNode])
-            setTree(subTree)
-
-        } else {
-            setTree(wkspTree)
-            // No Artemis contexts so redirect to the JMX view and select the first tree node
-            navigate('jmx')
+        const artemisJmxDomainNode = wkspTree.find(node => node.name === config.jmx.domain)
+        if (!(artemisJmxDomainNode && artemisJmxDomainNode.children && artemisJmxDomainNode.children.length > 0)) {
+            // Redirect to the JMX view as fallback
             eventService.notify({
                 type: 'warning',
                 message: 'No Artemis domain detected in target. Redirecting to back to jmx.',
             })
+            navigate({ pathname: '/jmx', search }, { replace: true })
+            return null
         }
-    }
 
+        if (artemisJmxDomainNode.children[0].objectName) {
+            artemisJmxDomainNode.children[0].addMetadata("type", "brokerType");
+            setBrokerNode(artemisJmxDomainNode.children[0]);
+        }
+
+        // remember the reference for the Artemis domain node
+        artemisDomain.current = artemisJmxDomainNode
+        setJmxDomain(config.jmx.domain)
+
+        // Using the camel domain nodes from the original tree means it is the same
+        // node as that that appears in the workspace tree
+        // There should be only one actual Camel context - contextsNode.getChildren() should be of length=1
+        return MBeanTree.createFromNodes(artemisPluginName, [artemisJmxDomainNode])
+    }, [navigate, search])
+
+    // this effect loads the tree - both at initial render and when the tree is refreshed (by TreeWatcher)
+    // outside of React
     useEffect(() => {
+        let apply = true
         const loadTree = async () => {
-            await populateTree()
-            setLoaded(true)
+            // Jmx plugin just calls "await workspace.getTree()", but we need only part of it
+            const tree = await populateTree()
+            if (apply) {
+                if (tree) {
+                    setTree(tree)
+                }
+                setLoaded(true)
+            }
         }
 
         const listener = () => {
             setLoaded(false)
+            apply = true
             loadTree()
         }
         eventService.onRefresh(listener)
 
         loadTree()
 
-        return () => eventService.removeListener(EVENT_REFRESH, listener)
-        /*
-         * This effect should only be called on mount so cannot depend on selectedNode
-         * But cannot have [] removed either as this seems to execute the effect repeatedly
-         * So disable the lint check.
-         */
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [])
+        return () => {
+            apply = false
+            eventService.removeListener(EVENT_REFRESH, listener)
+            if (jmxDomain) {
+                workspace.clearExpandAll(jmxDomain)
+            }
+        }
+    }, [populateTree])
 
     const findAndSelectNode = (objectName: string, name: string) => {
         let node: MBeanNode | null = tree.find(node => { 
@@ -101,13 +119,145 @@ export function useArtemisTree() {
         }
         setSelectedNode(node);
     }
-    return { tree, loaded, brokerNode, selectedNode, setSelectedNode, findAndSelectNode }
+    return { tree, loaded, brokerNode, jmxDomain, selectedNode, setSelectedNode, findAndSelectNode }
 }
 
+/**
+ * Custom React hook that uses `useArtemisTree()` and synchronizes the tree selection and `nid` parameter
+ */
+export function useTreeSynchronization() {
+    const { tree, loaded, brokerNode, selectedNode, jmxDomain, setSelectedNode, findAndSelectNode } = useArtemisTree()
 
-type ArtemisTreeContext = {
+    // "initial" flag though is cleared only once. When displayed for the first time
+    // when navigating to Artemis JMX plugin we expand default folders, but we should not do it on background reload
+    const [initial, setInitial] = useState(true)
+
+    const { pathname, search } = useLocation()
+    const navigate = useNavigate()
+    const [searchParams] = useSearchParams()
+
+    // synchronize the `nid` query parameter and the global state for "selected node"
+    useEffect(() => {
+        const nid = searchParams.get('nid') ?? new URLSearchParams(window.location.search).get('nid')
+        if (selectedNode && (!nid || nid !== selectedNode.id)) {
+            // because we may retrieve "nid" being out of sync with React Router state, we have to
+            // navigate fully (not just setSearchParams())
+            navigate(pluginPathWithNodeId(selectedNode, artemisJMXPluginPath, searchParams), { replace: true })
+            return
+        }
+        if (loaded) {
+            // first, as with Jmx plugin, we'll try to get the selected node from `nid` query parameter
+            // but we won't immediately set the found node as selected, because it may not be from Camel domain
+            let selectedFromQuery: MBeanNode | null = null
+            if (!selectedNode && nid) {
+                const found = tree.find(node => node.id === nid)
+                if (found) {
+                    const path = found.path()
+                    selectedFromQuery = tree.navigate(...path)
+                }
+            }
+
+            let selectedArtemisNode = null
+            let s = selectedFromQuery ?? selectedNode
+            while (s) {
+                if (s.name === jmxDomain) {
+                    selectedArtemisNode = selectedFromQuery ?? selectedNode
+                    break
+                }
+                s = s.parent
+            }
+
+            const artemisDomainNode = tree.find(n => n.name === jmxDomain)
+
+            if (!selectedArtemisNode && artemisDomainNode) {
+                // nid didn't point to anything we can select for Artemis JMX tab, so lets do the default selection
+                // when the Artemis is displayed for the first time - let's use first available broker node
+                if (initial) {
+                    if (jmxDomain) {
+                        workspace.expandAll(false, jmxDomain)
+                        workspace.clearExpandAll(jmxDomain)
+                    }
+                    // always expand the context tree
+                    workspace.expand(true, artemisDomainNode)
+
+                    // try to select first broker
+                    const toSelect = artemisDomainNode.children?.[0] ?? artemisDomainNode
+                    const path = [...toSelect.path()]
+                    const selected = tree.navigate(...path)
+                    if (selected) {
+                        tree.forEach(path, n => {
+                            workspace.expand(true, n)
+                        })
+                        startTransition(() => {
+                            setSelectedNode(selected)
+                        })
+                        searchParams.delete('nid')
+                    }
+                }
+            } else if (selectedArtemisNode) {
+                // nid points to some existing node in the Artemis tree
+                tree.forEach(selectedArtemisNode.path(), n => {
+                    workspace.expand(true, n)
+                })
+                startTransition(() => {
+                    setSelectedNode(selectedArtemisNode)
+                })
+            } else {
+                // there may be a selected node, but not from Artemis domain
+                startTransition(() => {
+                    setSelectedNode(null)
+                })
+                searchParams.delete('nid')
+                navigate({ pathname: artemisJMXPluginPath, search: searchParams.toString() }, { replace: true })
+            }
+            startTransition(() => {
+                setInitial(false)
+            })
+        }
+    }, [pathname, search, loaded, tree, selectedNode, setSelectedNode, navigate, searchParams, initial])
+
+    // this effect navigates the tree and expands relevant nodes if the selected node changes
+    useEffect(() => {
+        if (selectedNode) {
+            const path = [...selectedNode.path()]
+            // Ensure the new version of the selected node is selected in the reloaded tree
+            const newSelected = tree.navigate(...path)
+            if (newSelected) {
+                tree.forEach(path, n => {
+                    workspace.expand(true, n)
+                })
+                // important to reselect the node upon refresh to point to a new instance
+                // with the same ID and path
+                if (!Object.is(newSelected, selectedNode)) {
+                    setSelectedNode(newSelected)
+                }
+            }
+        }
+    }, [tree, selectedNode, setSelectedNode])
+
+    return { tree, loaded, brokerNode, jmxDomain, selectedNode, setSelectedNode, findAndSelectNode }
+}
+
+/**
+ * Build URL query string with `nid` parameter, preserving other existing params
+ * @param node The node to encode
+ * @param pathname the path to use for the prepared URL
+ * @param searchParams The current URL search params to preserve, defaults to the ones from the window location
+ */
+export function pluginPathWithNodeId(
+    node: MBeanNode,
+    pathname: string,
+    searchParams: URLSearchParams = new URLSearchParams(window.location.search),
+): Partial<To> {
+    searchParams.set(PARAM_KEY_NODE_ID, node.id)
+    return { pathname, search: searchParams.toString() }
+}
+
+export type ArtemisTreeContext = {
     tree: MBeanTree
+    loaded: boolean
     selectedNode: MBeanNode | null
+    jmxDomain: string | undefined
     brokerNode: MBeanNode | undefined
     setSelectedNode: (selected: MBeanNode | null) => void
     findAndSelectNode: (objectName: string, name: string) => void
@@ -115,12 +265,14 @@ type ArtemisTreeContext = {
 
 export const ArtemisContext = createContext<ArtemisTreeContext>({
     tree: MBeanTree.createEmpty(artemisPluginName),
+    loaded: false,
     selectedNode: null,
     brokerNode: undefined,
+    jmxDomain: undefined,
     setSelectedNode: () => {
         /* no-op */
     },
-    findAndSelectNode: (objectName: string, name: string) => {
+    findAndSelectNode: (_objectName: string, _name: string) => {
         /* no-op */
     }
 })

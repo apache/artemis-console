@@ -22,6 +22,21 @@
     <base href="/console/" />
     <meta name="description" content="Apache Artemis Management Console" />
 
+    <script>
+      ;(() => {
+        if (localStorage && window.matchMedia) {
+          const saved = localStorage.getItem('hawtio.theme')
+          const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+          const theme = saved ?? (prefersDark ? 'dark' : 'light')
+          if (theme === 'dark') {
+            document.documentElement.classList.add('pf-v6-theme-dark')
+          } else {
+            document.documentElement.classList.remove('pf-v6-theme-dark')
+          }
+        }
+      })()
+    </script>
+
     <!-- Hawtio branding styles and favicon placeholders -->
     <link id="branding" rel="stylesheet" type="text/css" href="" />
     <link id="favicon" rel="icon" type="image/png" href="img/favicon.png" />

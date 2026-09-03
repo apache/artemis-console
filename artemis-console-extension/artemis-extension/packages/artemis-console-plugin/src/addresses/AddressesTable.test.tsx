@@ -14,12 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { render, screen, within } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import { AddressesTable } from './AddressesTable'
 import { artemisService } from '../artemis-service'
+import { TableFilters } from '../table/types'
+import { ArtemisTreeContext } from '../context'
+import { MBeanTree } from '@hawtio/react'
 
-jest.mock('react-router-dom', () => ({
-  ...jest.requireActual('react-router-dom'),
+jest.mock('react-router', () => ({
   useNavigate: () => jest.fn()
 }))
 
@@ -36,7 +38,8 @@ jest.mock('@patternfly/react-core', () => ({
   Text: ({ children }: any) => <p>{children}</p>,
   ModalVariant: {
     medium: 'medium'
-  }
+  },
+  PageSection: ({ children }: any) => <div>{children}</div>,
 }))
 
 jest.mock('../artemis-service', () => ({
@@ -56,9 +59,11 @@ jest.mock('../table/ArtemisTable', () => ({
 jest.mock('../queues/CreateQueue', () => ({
   CreateQueue: () => <div>CreateQueue</div>
 }))
-const mockContextValue = {
-  tree: {},
-  selectedNode: undefined,
+const mockContextValue: ArtemisTreeContext = {
+  tree: MBeanTree.createEmpty('artemis'),
+  loaded: true,
+  jmxDomain: 'org.apache.activemq.artemis',
+  selectedNode: null,
   brokerNode: undefined,
   setSelectedNode: jest.fn(),
   findAndSelectNode: jest.fn()
@@ -91,6 +96,9 @@ jest.mock('../artemis-preferences-service', () => ({
 jest.mock('@hawtio/react', () => ({
   Attributes: () => <div>Attributes</div>,
   Operations: () => <div>Operations</div>,
+  MBeanTree: {
+    createEmpty: jest.fn()
+  },
   eventService: {
     notify: jest.fn()
   },
@@ -134,8 +142,13 @@ const setupPermissions = (config: PermissionConfig = {}) => {
   artemisService.canSendMessageToAddress = jest.fn(() => permissions.canSendMessageToAddress)
 }
 
+const emptyFilters: TableFilters = {
+  searchFilters: [],
+  sorting: {}
+}
+
 const renderComponent = () => {
-  const result = render(<AddressesTable search="" filter={undefined} />)
+  const result = render(<AddressesTable switchTab={()=>{}} filters={emptyFilters} editGlobalFilter={() => {}} />)
   // Wait for modals to potentially render in portals
   return result
 }
@@ -189,16 +202,16 @@ describe('AddressesTable', () => {
 
     test('canDeleteAddress permission correctly controls modal rendering', () => {
       // First render with permission false
-      const { rerender } = render(<AddressesTable search="" filter={undefined} />)
+      const { rerender } = render(<AddressesTable switchTab={()=>{}} filters={emptyFilters} editGlobalFilter={() => {}} />)
       setupPermissions({ canDeleteAddress: false })
-      rerender(<AddressesTable search="" filter={undefined} />)
+      rerender(<AddressesTable switchTab={()=>{}} filters={emptyFilters} editGlobalFilter={() => {}} />)
 
       let deleteModal = document.querySelector('[aria-label="delete-address-modal"]')
       expect(deleteModal).not.toBeInTheDocument()
 
       // Re-render with permission true
       setupPermissions({ canDeleteAddress: true })
-      rerender(<AddressesTable search="" filter={undefined} />)
+      rerender(<AddressesTable switchTab={()=>{}} filters={emptyFilters} editGlobalFilter={() => {}} />)
 
       deleteModal = document.querySelector('[aria-label="delete-address-modal"]')
       expect(deleteModal).toBeInTheDocument()
@@ -251,7 +264,7 @@ describe('AddressesTable', () => {
       expect(document.querySelector('[aria-label="delete-address-modal"]')).toBeInTheDocument()
       expect(document.querySelector('[aria-label="attributes-modal"]')).toBeInTheDocument()
       expect(document.querySelector('[aria-label="operations-modal"]')).toBeInTheDocument()
-      expect(document.querySelector('[aria-label="create=address-modal"]')).toBeInTheDocument()
+      expect(document.querySelector('[aria-label="create-address-modal"]')).toBeInTheDocument()
       expect(document.querySelector('[aria-label="send-modal"]')).toBeInTheDocument()
     })
 
@@ -266,7 +279,7 @@ describe('AddressesTable', () => {
       expect(document.querySelector('[aria-label="create-queue-modal"]')).toBeInTheDocument()
       expect(document.querySelector('[aria-label="attributes-modal"]')).toBeInTheDocument()
       expect(document.querySelector('[aria-label="operations-modal"]')).toBeInTheDocument()
-      expect(document.querySelector('[aria-label="create=address-modal"]')).toBeInTheDocument()
+      expect(document.querySelector('[aria-label="create-address-modal"]')).toBeInTheDocument()
       expect(document.querySelector('[aria-label="send-modal"]')).toBeInTheDocument()
     })
   })

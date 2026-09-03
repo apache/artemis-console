@@ -16,62 +16,231 @@
  */
 /* You can customise the styles of your application here. */
 
+:root {
+  /*
+   * According to https://www.patternfly.org/foundations-and-styles/design-tokens/overview there are 3 layers
+   * of color-related tokens:
+   *  - palette - explicit colors
+   *  - base - category without explicit meaning (like "text-color" or "brand" or "border-color")
+   *  - semantic - representing the meaning and intent (like "hover" or "accent" or "default")
+   */
 
-.pf-v5-c-login,
-.pf-v5-c-about-modal-box__hero {
-  background-image: url("../img/background.png") !important;
+  /* Artemis warm purple palette - hue ~283-287°, warmer/more magenta than PatternFly purple */
+  /* There's a "purple" palette in Patternfly (--pf-t--color--purple--10 to --pf-t--color--purple--80), but colder */
+  --artemis-global--primary-color--10: #f3ecff; /* hsl(283°, 100%, 96%) - lightest tint */
+  --artemis-global--primary-color--20: #e0ccf5; /* hsl(282°,  71%, 88%) */
+  --artemis-global--primary-color--30: #c9a8ea; /* hsl(284°,  65%, 79%) */
+  --artemis-global--primary-color--40: #a87dd5; /* hsl(282°,  55%, 66%) */
+  --artemis-global--primary-color--50: #714099; /* hsl(286°,  41%, 43%) */
+  --artemis-global--primary-color--60: #552e78; /* hsl(284°,  44%, 33%) */
+  --artemis-global--primary-color--70: #371a52; /* hsl(283°,  52%, 21%) */
+  --artemis-global--primary-color--80: #1f0d30; /* hsl(283°,  58%, 12%) - near-black plum */
+
+  /* Artemis secondary palette - hue ~336°, warm rose/mauve */
+  --artemis-global--secondary-color--10: #fce8f0; /* hsl(336°, 85%, 95%) - palest blush */
+  --artemis-global--secondary-color--20: #f4c2d8; /* hsl(336°, 75%, 86%) */
+  --artemis-global--secondary-color--30: #e599bb; /* hsl(336°, 65%, 75%) */
+  --artemis-global--secondary-color--40: #ce739a; /* hsl(336°, 52%, 63%) */
+  --artemis-global--secondary-color--50: #b24e78; /* hsl(336°, 38%, 51%) */
+  --artemis-global--secondary-color--60: #8c3559; /* hsl(336°, 44%, 38%) */
+  --artemis-global--secondary-color--70: #621e3c; /* hsl(336°, 52%, 25%) */
+  --artemis-global--secondary-color--80: #3a0d21; /* hsl(336°, 60%, 14%) - near-black rose */
+
+  /* Switch tokens that originally use blue palette to Artemis primary palette */
+  --pf-t--global--color--brand--100: var(--artemis-global--primary-color--40);
+  --pf-t--global--color--brand--200: var(--artemis-global--primary-color--50);
+  --pf-t--global--color--brand--300: var(--artemis-global--primary-color--60);
+  --pf-t--global--color--brand--400: var(--artemis-global--primary-color--70);
+  --pf-t--global--color--brand--500: var(--artemis-global--primary-color--80);
+  --pf-t--global--color--brand--subtle--100: var(--artemis-global--primary-color--10);
+  --pf-t--global--color--brand--subtle--200: var(--artemis-global--primary-color--20);
+  --pf-t--global--color--brand--subtle--300: var(--artemis-global--primary-color--40);
+  --pf-t--global--color--brand--subtle--400: var(--artemis-global--primary-color--50);
+  --pf-t--global--color--severity--none--100: var(--artemis-global--primary-color--40);
+  --pf-t--global--color--severity--none--200: var(--artemis-global--primary-color--60);
+  --pf-t--global--focus-ring--color--100: var(--artemis-global--primary-color--50);
+  --pf-t--global--focus-ring--color--200: var(--artemis-global--primary-color--60);
+  --pf-t--global--text--color--link--100: var(--artemis-global--primary-color--50);
+  --pf-t--global--text--color--link--200: var(--artemis-global--primary-color--60);
+  --pf-t--global--text--color--link--250: var(--artemis-global--primary-color--70);
+
+  /* non-palette tokens which should be different in dark mode */
+  --artemis--background--color--gradient-end: var(--artemis-global--secondary-color--50);
+  --artemis--background--color--menu--item--hover: var(--pf-t--global--color--brand--subtle--100);
+  --artemis--background--color--row--hover: var(--pf-t--global--color--brand--subtle--100);
+  --artemis--background--color--cell--hover: var(--pf-t--global--color--brand--subtle--100);
+  --artemis--color--tree--icon: var(--pf-t--global--color--brand--200);
+
+  /* Light mode colors for 6 kinds of broker diagram elements */
+  /* 1. Broker */
+  --artemis-diag-broker-color: #714099;
+  --artemis-diag-broker-border: #200734;
+  --artemis-diag-broker-label-text: #ffffff;
+  /* 2. Backup Broker */
+  --artemis-diag-backup-broker-color: #714099;
+  --artemis-diag-backup-broker-border: #200734;
+  --artemis-diag-backup-broker-label-text: #ffffff;
+  /* 3. Address */
+  --artemis-diag-address-color: #3e489f;
+  --artemis-diag-address-border: #2b326e;
+  --artemis-diag-address-label-text: #ffffff;
+  /* 4. Queue */
+  --artemis-diag-queue-color: #78932c;
+  --artemis-diag-queue-border: #50621d;
+  --artemis-diag-queue-label-text: #ffffff;
+  /* 5. Internal Address */
+  --artemis-diag-internal-address-color: #ffffff;
+  --artemis-diag-internal-address-border: #2b326e;
+  --artemis-diag-internal-address-label-text: #000000;
+  /* 6. Internal Queue */
+  --artemis-diag-internal-queue-color: #ffffff;
+  --artemis-diag-internal-queue-border: #50621d;
+  --artemis-diag-internal-queue-label-text: #000000;
+}
+
+:root:where(.pf-v6-theme-dark) {
+  /* Switch tokens that originally use blue palette to Artemis palette */
+  --pf-t--global--dark--color--brand--100: var(--artemis-global--primary-color--30);
+  --pf-t--global--dark--color--brand--200: var(--artemis-global--primary-color--20);
+  --pf-t--global--dark--color--brand--300: var(--artemis-global--primary-color--10);
+  --pf-t--global--dark--color--brand--subtle--100: var(--artemis-global--primary-color--70);
+  --pf-t--global--dark--color--brand--subtle--200: var(--artemis-global--primary-color--60);
+  --pf-t--global--dark--color--brand--subtle--300: var(--artemis-global--primary-color--30);
+  --pf-t--global--dark--color--severity--none--100: var(--artemis-global--primary-color--30);
+  --pf-t--global--dark--focus-ring--color--100: var(--artemis-global--primary-color--30);
+  --pf-t--global--dark--text--color--link--100: var(--artemis-global--primary-color--20);
+  --pf-t--global--dark--text--color--link--200: var(--artemis-global--primary-color--10);
+
+  /* non-palette tokens - overrides from light-mode */
+  --artemis--background--color--gradient-end: var(--artemis-global--secondary-color--30);
+  --artemis--background--color--menu--item--hover: var(--pf-t--global--dark--color--brand--subtle--200);
+  --artemis--background--color--row--hover: var(--pf-t--global--dark--color--brand--subtle--200);
+  --artemis--background--color--cell--hover: var(--pf-t--global--dark--color--brand--subtle--200);
+  --artemis--color--tree--icon: var(--pf-t--global--dark--color--brand--200);
+
+  /* Dark mode colors for 6 kinds of broker diagram elements */
+  /* 1. Broker */
+  --artemis-diag-broker-color: #714099;
+  --artemis-diag-broker-border: #200734;
+  --artemis-diag-broker-label-text: #ffffff;
+  /* 2. Backup Broker */
+  --artemis-diag-backup-broker-color: #714099;
+  --artemis-diag-backup-broker-border: #200734;
+  --artemis-diag-backup-broker-label-text: #ffffff;
+  /* 3. Address */
+  --artemis-diag-address-color: #3e489f;
+  --artemis-diag-address-border: #2b326e;
+  --artemis-diag-address-label-text: #ffffff;
+  /* 4. Queue */
+  --artemis-diag-queue-color: #78932c;
+  --artemis-diag-queue-border: #50621d;
+  --artemis-diag-queue-label-text: #ffffff;
+  /* 5. Internal Address */
+  --artemis-diag-internal-address-color: #ffffff;
+  --artemis-diag-internal-address-border: #2b326e;
+  --artemis-diag-internal-address-label-text: #000000;
+  /* 6. Internal Queue */
+  --artemis-diag-internal-queue-color: #ffffff;
+  --artemis-diag-internal-queue-border: #50621d;
+  --artemis-diag-internal-queue-label-text: #000000;
+}
+
+/* Adding rules not available in Patternfly */
+
+/* Gradients for primary buttons */
+
+.pf-v6-c-button.pf-m-primary:not(.pf-v6-c-nav__link) {
+  --pf-v6-c-button--TransitionDuration: 0;
+}
+.pf-v6-c-button.pf-m-primary:not(.pf-v6-c-nav__link):hover {
+  --pf-v6-c-button--TransitionDuration: 0;
+  background: var(--pf-v6-c-button--m-primary--BackgroundColor)
+    linear-gradient(to bottom, var(--pf-v6-c-button--m-primary--BackgroundColor), var(--artemis--background--color--gradient-end))
+    no-repeat center / 100% 100%;
+}
+
+/* Hover highlight for all table rows */
+
+.pf-v6-c-table tbody>tr:hover,
+.pf-v6-c-table.pf-m-striped tbody>tr:nth-child(2n+1):hover {
+  background-color: var(--artemis--background--color--row--hover);
+}
+.pf-v6-c-table tbody>tr>td:hover,
+.pf-v6-c-table.pf-m-striped tbody>tr:nth-child(2n+1)>td:hover {
+  background-color: var(--artemis--background--color--cell--hover);
+}
+
+/* Hover for menu items */
+
+.pf-v6-c-menu__item:hover {
+  background-color: var(--artemis--background--color--menu--item--hover);
+}
+
+/* Hover for tree nodes */
+
+.pf-v6-c-tree-view {
+  --pf-v6-c-tree-view__node--hover--BackgroundColor: var(--artemis--background--color--menu--item--hover);
+}
+
+.pf-v6-c-button__icon, .pf-v6-c-menu-toggle__toggle-icon, .pf-v6-c-tree-view__node-icon {
+  color: var(--artemis--color--tree--icon);
+}
+
+/* Login screen customization, because dark background is used both in light and dark mode */
+
+.pf-v6-c-login {
+  background-image: url("../img/background.png");
   background-size: cover;
 }
-
-.pf-v5-c-login__container {
-  justify-content: left;
+.pf-v6-c-login__header>img.pf-v6-c-brand {
+  /* Hide logo from hawtconfig.json */
+  visibility: hidden;
 }
-.pf-v5-c-login__main {
+.pf-v6-c-login__header {
+  background-image: url("../img/artemis-logo-white.svg");
+  background-repeat: no-repeat;
+}
+.pf-v6-c-login__main {
   background-color: transparent;
 }
-a.pf-v5-c-button.idp, button.pf-v5-c-button.idp {
-  background-color: white;
+.pf-v6-c-login__main-body .pf-v6-c-button:not(.pf-m-primary) {
+  color: var(--artemis-global--primary-color--60);
+  background-color: var(--artemis-global--primary-color--10);
+}
+.pf-v6-c-login__main-body .pf-v6-c-button:not(.pf-m-primary)::after {
+  border-color: var(--artemis-global--primary-color--60);
+}
+.pf-v6-c-login__main-header,
+.pf-v6-c-login__main-body,
+.pf-v6-c-login__footer,
+.pf-v6-c-login__main-body .pf-v6-c-check__label,
+.pf-v6-c-login__main-footer .pf-v6-c-button.pf-m-link>span,
+.pf-v6-c-login__main-body .pf-v6-c-alert__title {
+  color: var(--pf-t--color--white);
+}
+.pf-v6-c-login__footer {
+  font-size: var(--pf-t--global--font--size--body--lg);
 }
 
-.pf-v5-c-login__main-body label {
-  color: white;
-}
-
-.pf-v5-c-expandable-section__toggle {
-  display: flex;
-  padding: var(--pf-v5-c-expandable-section__toggle--PaddingTop) var(--pf-v5-c-expandable-section__toggle--PaddingRight) var(--pf-v5-c-expandable-section__toggle--PaddingBottom) var(--pf-v5-c-expandable-section__toggle--PaddingLeft);
-  margin-top: var(--pf-v5-c-expandable-section__toggle--MarginTop);
-  color: var(--artemis-global--primary-color--100);
-  border: none;
-}
-
-/*Uses Artemis colors in broker diagram*/
-svg text {
-  font-family: PatternFlyIcons-webfont;
-}
-
-svg.pf-v5-svg {
-  fill: var(--artemis-global--primary-color--100);
-}
+/* Diagram SVG elements customization */
+/* Can't avoid "!important" here, because react-topology uses fills/strokes in "style" attribute */
 
 .pf-topology__node.artemisBroker.pf-m-info .pf-topology__node__background {
-  stroke:  var(--artemis-diag-broker-border);
+  stroke: var(--artemis-diag-broker-border);
   stroke-width: 3;
   fill: var(--artemis-diag-broker-color);
 }
-
 .pf-topology__node__label.artemisBrokerLabel {
   & > rect {
     stroke: var(--artemis-diag-broker-border);
   }
-
-  .pf-topology__node__label__badge {
+  & .pf-topology__node__label__badge {
     & > rect {
-      stroke: var(--artemis-diag-broker-border);
-      fill:  var(--artemis-diag-broker-color);
+      stroke: var(--artemis-diag-broker-border) !important;
+      fill: var(--artemis-diag-broker-color) !important;
     }
     & > text {
-      fill: var(--artemis-diag-broker-label-text);
+      fill: var(--artemis-diag-broker-label-text) !important;
     }
   }
 }
@@ -81,19 +250,17 @@ svg.pf-v5-svg {
   stroke-width: 3;
   fill: var(--artemis-diag-backup-broker-color);
 }
-
 .pf-topology__node__label.artemisBackupBrokerLabel {
   & > rect {
     stroke: var(--artemis-diag-backup-broker-border);
   }
-
-  .pf-topology__node__label__badge {
+  & .pf-topology__node__label__badge {
     & > rect {
-      stroke: var(--artemis-diag-backup-broker-border);
-      fill:  var(--artemis-diag-backup-broker-color);
+      stroke: var(--artemis-diag-backup-broker-border) !important;
+      fill: var(--artemis-diag-backup-broker-color) !important;
     }
     & > text {
-      fill: var(--artemis-diag-backup-broker-label-text);
+      fill: var(--artemis-diag-backup-broker-label-text) !important;
     }
   }
 }
@@ -102,27 +269,20 @@ svg.pf-v5-svg {
   stroke:  var(--artemis-diag-address-border);
   stroke-width: 3;
   fill: var(--artemis-diag-address-color);
-  & > rect {
-    stroke: var(--artemis-diag-address-border);
-    fill:  var(--artemis-diag-address-color);
-  }
 }
-
 .pf-topology__node__label.artemisAddressLabel {
   & > rect {
     stroke: var(--artemis-diag-address-border);
   }
-
-  .pf-topology__node__label__badge {
+  & .pf-topology__node__label__badge {
     & > rect {
-      stroke: var(--artemis-diag-address-border);
-      fill:  var(--artemis-diag-address-color);
+      stroke: var(--artemis-diag-address-border) !important;
+      fill: var(--artemis-diag-address-color) !important;
     }
     & > text {
-      fill: var(--artemis-diag-address-label-text);
+      fill: var(--artemis-diag-address-label-text) !important;
     }
   }
-
 }
 
 .pf-topology__node.artemisQueue.pf-m-info .pf-topology__node__background {
@@ -130,19 +290,17 @@ svg.pf-v5-svg {
   stroke-width: 3;
   fill: var(--artemis-diag-queue-color);
 }
-
 .pf-topology__node__label.artemisQueueLabel {
   & > rect {
     stroke: var(--artemis-diag-queue-border);
   }
-
-   .pf-topology__node__label__badge {
+  & .pf-topology__node__label__badge {
     & > rect {
-      stroke: var(--artemis-diag-queue-border);
-      fill:  var(--artemis-diag-queue-color);
+      stroke: var(--artemis-diag-queue-border) !important;
+      fill: var(--artemis-diag-queue-color) !important;
     }
     & > text {
-      fill:var(--artemis-diag-queue-label-text);
+      fill: var(--artemis-diag-queue-label-text) !important;
     }
   }
 }
@@ -152,19 +310,17 @@ svg.pf-v5-svg {
   stroke-width: 3;
   fill:  var(--artemis-diag-internal-address-color);
 }
-
 .pf-topology__node__label.artemisInternalAddressLabel {
   & > rect {
     stroke: var(--artemis-diag-internal-address-border);
   }
-
-  .pf-topology__node__label__badge {
+  & .pf-topology__node__label__badge {
     & > rect {
-      stroke: var(--artemis-diag-internal-address-border);
-      fill:  var(--artemis-diag-internal-address-color);
+      stroke: var(--artemis-diag-internal-address-border) !important;
+      fill: var(--artemis-diag-internal-address-color) !important;
     }
     & > text {
-      fill: var(--artemis-diag-internal-address-label-text);
+      fill: var(--artemis-diag-internal-address-label-text) !important;
     }
   }
 }
@@ -174,195 +330,17 @@ svg.pf-v5-svg {
   stroke-width: 3;
   fill: var(--artemis-diag-internal-queue-color);
 }
-
 .pf-topology__node__label.artemisInternalQueueLabel {
   & > rect {
     stroke: var(--artemis-diag-internal-queue-border);
   }
-  .pf-topology__node__label__badge {
+  & .pf-topology__node__label__badge {
     & > rect {
-      stroke: var(--artemis-diag-internal-queue-border);
-      fill:  var(--artemis-diag-internal-queue-color);
+      stroke: var(--artemis-diag-internal-queue-border) !important;
+      fill: var(--artemis-diag-internal-queue-color) !important;
     }
     & > text {
-      fill: var(--artemis-diag-internal-queue-label-text);
+      fill: var(--artemis-diag-internal-queue-label-text) !important;
     }
-  }
-}
-
-.pf-v5-c-button.pf-m-primary {
-  background-color: var(--artemis-global--primary-color--200);
-}
-
-.pf-v5-c-button.pf-m-primary.pf-m-hover, .pf-v5-c-button.pf-m-primary:hover {
-  background-color: var(--artemis-global--primary-color--100);
-  background-image: linear-gradient(to bottom,var(--artemis-global--primary-color--100) 0,#B24E78 100%);
-  border-color: var(--artemis-global--primary-color--100);
-}
-
-.pf-v5-c-title.pf-m-3xl {
-  color: white;
-}
-
-.btn-primary {
-  background-color: var(--artemis-global--primary-color--100);
-  background-image: linear-gradient(to bottom,var(--artemis-global--primary-color--100) 0,var(--artemis-global--primary-color--100) 100%);
-  background-repeat: repeat-x;
-  border-color: var(--artemis-global--primary-color--100);
-  color: #fff;
-}
-.btn-primary.active.focus,
-.btn-primary.active:focus,
-.btn-primary.active:hover, .btn-primary:active.focus,
-.btn-primary:active:focus,
-.btn-primary:active:hover,
-.open .dropdown-toggle.btn-primary.focus,
-.open .dropdown-toggle.btn-primary:focus,
-.open .dropdown-toggle.btn-primary:hover {
-  background-color: var(--artemis-global--primary-color--100);
-  border-color: var(--artemis-global--primary-color-dark);
-}
-
-/*These change the row in a table when hovered over*/
-.table-hover>tbody>tr:hover {
-  background-color: var(--artemis-global--primary-color--300);
-}
-
-.table-hover>tbody>tr:hover td {
-  background-color: var(--artemis-global--primary-color--200);
-}
-
-select>option:hover,
-select>option:active {
-  background: var(--artemis-global--primary-color--200);
-  background-color: var(--artemis-global--primary-color--200);
-}
-
-tbody>tr:hover {
-  background-color: var(--artemis-global--primary-color--300);
-}
-
-/*These button settings control the color of the buttons when clicked, hovered or visited*/
-.btn-primary:hover,
-.btn-primary.hover
-.btn-primary:active,
-.btn-primary.active,
-.btn-primary:focus,
-.btn-primary.focus,
-.btn-primary:visited,
-.btn-primary.visited{
-  background-color: var(--artemis-global--primary-color--100);
-  background-image: linear-gradient(to bottom,var(--artemis-global--primary-color--100) 0,var(--artemis-global--primary-color--100) 100%);
-  border-color: var(--artemis-global--primary-color--100);
-}
-
-/*This changes the color of the hover item in the JMX Tree*/
-.treeview-pf-hover .list-group-item:hover {
-  background-color: var(--artemis-global--primary-color--100)!important;
-  border-color: var(--artemis-global--primary-color--100)!important;
-}
-
-/*This changes the color of the chosen selection in the JMX Tree*/
-.treeview-pf-select .list-group-item.node-selected {
-  background: var(--artemis-global--primary-color--100)!important;
-  border-color: var(--artemis-global--primary-color--100)!important;
-  color: #fff!important;
-}
-
-/* This changes the color of the underline in the main left menu*/
-.pf-v5-c-nav__list .pf-m-current.pf-v5-c-nav__link::after, .pf-v5-c-nav__list .pf-m-current>.pf-v5-c-nav__link::after {
-  background-color: var(--artemis-global--primary-color--100);
-}
-
-.pf-v5-c-nav__list .pf-v5-c-nav__link.pf-m-hover::after, .pf-v5-c-nav__list .pf-v5-c-nav__link:hover::after {
-  background-color: var(--artemis-global--primary-color--100);
-}
-
-.card-pf.card-pf-accented {
-  border-top-color: var(--artemis-global--primary-color--100);
-}
-
-/*This changes the hover color in all the tables*/
-.table-hover tbody tr:hover td.focus {
-background-color: var(--artemis-global--primary-color--300);
-}
-
-:root {
-  --artemis-global--primary-color--100: #714099;
-  --artemis-global--primary-color--200: #885bad; 
-  --artemis-global--primary-color--300: #9378aa; 
-  --artemis-global--primary-color--400: #9989a7; 
-  --artemis-global--primary-color-dark: #714099;
-  --artemis-global--primary-second-color-100: #2b326e;
-  --artemis-global--primary-color-dark--100: #d9c8e6;
-  --artemis-global--primary-color-dark--200: #daabfd; 
-  --artemis-global--primary-color-dark--300: #b578ea; 
-  --artemis-global--primary-color-dark--400: #9989a7; 
-  --artemis-global--primary-color-dark-dark: #cdbbdc;
-  --artemis-diag-broker-color: #714099;
-  --artemis-diag-broker-border:#200734;
-  --artemis-diag-broker-label-text:#fff;
-  --artemis-diag-backup-broker-color: #714099;
-  --artemis-diag-backup-broker-border:#200734;
-  --artemis-diag-backup-broker-label-text:#fff;
-  --artemis-diag-address-color: #3e489f;
-  --artemis-diag-address-border:#2b326e;
-  --artemis-diag-address-label-text:#fff;
-  --artemis-diag-queue-color: #78932c;
-  --artemis-diag-queue-border:#50621d;
-  --artemis-diag-queue-label-text:#fff;
-  --artemis-diag-internal-address-color: #fff;
-  --artemis-diag-internal-address-border:#2b326e;
-  --artemis-diag-internal-address-label-text:#000;
-  --artemis-diag-internal-queue-color: #fff;
-  --artemis-diag-internal-queue-border:#50621d;
-  --artemis-diag-internal-queue-label-text:#000;
-  --artemis-header-text-color: var(--artemis-global--primary-color--100);
-  --pf-v5-c-button--m-primary--BackgroundColor: var(--artemis-global--primary-color--200);
-  --pf-v5-c-button--m-primary--BackgroundColor-hover: var(--artemis-global--primary-color--100);
-  --pf-v5-global--active-color--100: var(--artemis-global--primary-color--200);
-  --pf-v5-global--active-color--200:var(--artemis-global--primary-color--200);
-  --pf-v5-global--active-color--300: var(--artemis-global--primary-color--300);
-  --pf-v5-global--active-color--400: var(--artemis-global--primary-color--400);
-  --pf-v5-global--primary-color--100: var(--artemis-global--primary-color--100);
-  --pf-v5-global--primary-color--200: var(--artemis-global--primary-color--200);
-  --pf-v5-global--primary-color--light-100: var(--artemis-global--primary-color--100);
-  --pf-v5-global--primary-color--dark-100: var(--artemis-global--primary-color--100);
-  --pf-v5-global--link--Color--hover: var(--artemis-global--primary-second-color-100);
-  --pf-v5-global--link--Color: var(--artemis-global--primary-color--100);
-  --pf-v5-global--link--Color--dark: var(--artemis-global--primary-color--100);
-  --pf-v5-global--link--Color--light: var(--artemis-global--primary-color--300);
-  --pf-v5-global--link--Color--light--hover: var(--artemis-global--primary-color--400);
-  --pf-v5-global--disabled-color--100: var(--artemis-global--primary-color-dark--200);
-  /** icon inside broker diagram */
-  --pf-v5-topology__node--Color: var(--artemis-global--primary-color--100);
-  --pf-v5-c-page__sidebar--Width: 10em;
-}
-
-.pf-v5-theme-dark {
-  --pf-v5-global--active-color--100: var(--artemis-global--primary-color-dark--200);
-  --pf-v5-global--active-color--200:var(--artemis-global--primary-color-dark--200);
-  --pf-v5-global--active-color--300: var(--artemis-global--primary-color-dark--300);
-  --pf-v5-global--active-color--400: var(--artemis-global--primary-color-dark--400);
-  --pf-v5-chart-donut--label--title--Fill: var(--artemis-diag-broker-label-text);
-  --pf-v5-global--primary-color--100: var(--artemis-global--primary-color-dark--100);
-  --pf-v5-global--primary-color--200: var(--artemis-global--primary-color-dark--200);
-  --pf-v5-global--primary-color--light-100: var(--artemis-global--primary-color-dark--100);
-  --pf-v5-global--primary-color--dark-100: var(--artemis-global--primary-color-dark--100);
-  --pf-v5-global--link--Color--hover: var(--artemis-global--primary-second-color-100);
-  --pf-v5-global--link--Color: var(--artemis-global--primary-color-dark--200);
-  --pf-v5-global--link--Color--dark: var(--artemis-global--primary-color-dark--200);
-  --pf-v5-global--link--Color--light: var(--artemis-global--primary-color-dark--300);
-  --pf-v5-global--link--Color--light--hover: var(--artemis-global--primary-color--dark-400);
-  --pf-v5-global--disabled-color--100: var(--artemis-global--primary-color-dark--200);
-  svg.pf-v5-svg {
-    fill: var(--artemis-global--primary-color-dark--200);
-  }
-  .pf-v5-c-expandable-section__toggle {
-    display: flex;
-    padding: var(--pf-v5-c-expandable-section__toggle--PaddingTop) var(--pf-v5-c-expandable-section__toggle--PaddingRight) var(--pf-v5-c-expandable-section__toggle--PaddingBottom) var(--pf-v5-c-expandable-section__toggle--PaddingLeft);
-    margin-top: var(--pf-v5-c-expandable-section__toggle--MarginTop);
-    color: var(--artemis-global--primary-color-dark--100);
-    border: none;
   }
 }

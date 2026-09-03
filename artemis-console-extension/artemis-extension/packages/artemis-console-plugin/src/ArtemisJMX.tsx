@@ -14,29 +14,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import React from 'react'
 import Split from 'react-split'
-import { ArtemisContext, useArtemisTree } from './context';
-import { ArtemisTreeView } from './ArtemisTreeView';
-import './artemisJMX.css'
-import { ArtemisJmxContent } from './ArtemisJMXContent';
 
+import { ArtemisContext, useTreeSynchronization } from './context'
+import { ArtemisTreeView } from './ArtemisTreeView'
+import { ArtemisJmxContent } from './ArtemisJMXContent'
 
 export const ArtemisJMX: React.FunctionComponent = () => {
-
-  const { tree, selectedNode, brokerNode, setSelectedNode, findAndSelectNode } = useArtemisTree();
+  const { tree, loaded, selectedNode, jmxDomain, brokerNode, setSelectedNode, findAndSelectNode } = useTreeSynchronization()
 
   return (
-      <ArtemisContext.Provider value={{ tree, selectedNode,brokerNode, setSelectedNode, findAndSelectNode }}>
-    
-        <Split className='artemis-split' sizes={[30, 70]} minSize={200} gutterSize={5}>
+      <ArtemisContext.Provider value={{ tree, loaded, selectedNode, jmxDomain, brokerNode, setSelectedNode, findAndSelectNode }}>
+        <Split className='jmx-split' sizes={[25, 75]} minSize={200} gutterSize={5}>
           <div>
             <ArtemisTreeView />
           </div>
           <div>
-              <ArtemisJmxContent/>
+            <ArtemisJmxContent />
           </div>
         </Split>
       </ArtemisContext.Provider>
   )
 }
-

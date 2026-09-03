@@ -69,6 +69,8 @@ const artemisTreeProcessor: TreeProcessor = async (tree: MBeanTree) => {
       addressesFolder.adopt(restructureAddress(address))
     }
   }
+
+  artemisDomain.initId(true)
 }
 
 /**

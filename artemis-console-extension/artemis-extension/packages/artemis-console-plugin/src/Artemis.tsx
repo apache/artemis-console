@@ -15,18 +15,11 @@
  * limitations under the License.
  */
 import React from 'react'
-import { ArtemisTabs } from './views/ArtemisTabView';
-import { PageSection, Page } from '@patternfly/react-core';
-
+import { ArtemisTabs } from './views/ArtemisTabView'
 
 export const Artemis: React.FunctionComponent = () => {
 
-  return ( 
-  <Page>
-    <PageSection padding={{default: 'noPadding'}}>
-      <ArtemisTabs/>
-    </PageSection>
-  </Page>
+  return (
+      <ArtemisTabs />
   )
 }
-

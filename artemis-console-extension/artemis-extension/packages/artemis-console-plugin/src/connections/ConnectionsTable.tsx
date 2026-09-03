@@ -14,55 +14,83 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React, { useState } from 'react'
-import { Navigate } from '../views/ArtemisTabView.js';
-import { ActiveSort, ArtemisTable, Column, Filter } from '../table/ArtemisTable';
-import { artemisService } from '../artemis-service';
-import { Modal, ModalVariant, Button } from '@patternfly/react-core';
-import { IAction } from '@patternfly/react-table';
-import { eventService, jolokiaService } from '@hawtio/react';
-import { columnStorage } from '../artemis-preferences-service';
+import React, { useCallback, useState } from 'react'
+import {
+  Button, Content, ContentVariants,
+  Label,
+  LabelStatus,
+  Modal,
+  ModalBody,
+  ModalFooter,
+  ModalHeader,
+  ModalVariant
+} from '@patternfly/react-core'
+import { type IAction } from '@patternfly/react-table'
+import { RhUiInfrastructureIcon } from '@patternfly/react-icons/dist/esm/icons/rh-ui-infrastructure-icon'
 
-export const ConnectionsTable: React.FunctionComponent<Navigate> = (navigate) => {
-  const getSessionFilter = (row: any) => {
-    const filter: Filter = {
-      column: 'connectionID',
-      operation: 'EQUALS',
-      input: row.connectionID
-    }
-    return filter;
+import { eventService, jolokiaService } from '@hawtio/react'
+
+import { artemisService } from '../artemis-service'
+import { columnStorage } from '../artemis-preferences-service'
+import {
+  type ActiveSort,
+  ColumnType,
+  type Filter,
+  SortDirection,
+  type TableColumn,
+  type TableRow,
+  type TableRowsData
+} from '../table/types'
+import { loadFilteredData } from '../table/utils'
+import { ArtemisTable, type ArtemisTableFilterProps } from '../table/ArtemisTable'
+
+// a filter function used to navigate to a filtered table of sessions for particular connection
+// the returned filter is for columns of the sessions tab
+const getSessionFilter: (row: TableRow) => Filter = row => {
+  return {
+    tab: 'sessions',
+    column: 'connectionID',
+    operation: 'EQUALS',
+    input: row.connectionID
   }
-  const defaultColumns: Column[] = [
-    { id: 'connectionID', name: 'ID', visible: false, sortable: true, filterable: true },
-    { id: 'clientID', name: 'Client ID', visible: true, sortable: true, filterable: true },
-    { id: 'users', name: 'Users', visible: true, sortable: true, filterable: true },
-    { id: 'protocol', name: 'Protocol', visible: true, sortable: true, filterable: true },
-    { id: 'sessionCount', name: 'Session Count', visible: true, sortable: true, filterable: true, filter: getSessionFilter, filterTab: 2 },
-    { id: 'remoteAddress', name: 'Remote Address', visible: true, sortable: true, filterable: true },
-    { id: 'localAddress', name: 'Local Address', visible: true, sortable: true, filterable: true },
-    { id: 'session', name: 'Session ID', visible: true, sortable: true, filterable: false },
-    { id: 'creationTime', name: 'Creation Time', visible: true, sortable: true, filterable: false }
-  ];
+}
 
-  const [showConnectionCloseDialog, setShowConnectionCloseDialog] = useState(false);
-  const [connectionToClose, setConnectionToClose] = useState("");
-  const [loadData, setLoadData] = useState(0);
+// see org.apache.activemq.artemis.core.management.impl.view.ConnectionView
+const allColumns: TableColumn[] = [
+  { id: 'connectionID', type: ColumnType.STRING, name: 'ID', visible: false, sortable: true, filterable: true },
+  { id: 'clientID', type: ColumnType.STRING, name: 'Client ID', visible: true, sortable: true, filterable: true },
+  { id: 'users', type: ColumnType.STRING, name: 'Users', visible: true, sortable: true, filterable: true },
+  { id: 'protocol', type: ColumnType.STRING, name: 'Protocol', visible: true, sortable: true, filterable: true, component: (v) => (<Label icon={<RhUiInfrastructureIcon />} status={LabelStatus.info}>{v}</Label>) },
+  { id: 'sessionCount', type: ColumnType.NUMBER, name: 'Session Count', visible: true, sortable: true, filterable: true, filter: getSessionFilter },
+  { id: 'remoteAddress', type: ColumnType.STRING, name: 'Remote Address', visible: true, sortable: true, filterable: true },
+  { id: 'localAddress', type: ColumnType.STRING, name: 'Local Address', visible: true, sortable: true, filterable: true },
+  // there's no 'session' field...
+  // { id: 'session', type: ColumnType.STRING, name: 'Session ID', visible: true, sortable: true, filterable: false },
+  // string, because it's java.util.Date.toString()
+  { id: 'creationTime', type: ColumnType.STRING, name: 'Creation Time', visible: true, sortable: true, filterable: false }
+  // could also add (2.57.0): implementation, proxyAddress, proxyProtocolVersion
+]
 
-  const listConnections = async (page: number, perPage: number, activeSort: ActiveSort, filter: Filter): Promise<any> => {
-    const response = await artemisService.getConnections(page, perPage, activeSort, filter).catch(error => {
-      eventService.notify({ type: "warning", message: jolokiaService.errorMessage(error) })
-      return JSON.stringify({ data: [], count: 0 })
-    })
-    const data = JSON.parse(response);
-    return data;
-  }
+// pick only a column which is filterable
+const initialFilter: Filter = { tab: 'connections', column: allColumns[1].id, operation: 'CONTAINS', input: '' }
+// pick only a column which is sortable
+const initialSort: ActiveSort = { column: allColumns[1].id, order: SortDirection.ASCENDING }
 
+export const ConnectionsTable: React.FunctionComponent<ArtemisTableFilterProps> = props => {
 
-  const closeConnection = (name: string) => {
+  const [showConnectionCloseDialog, setShowConnectionCloseDialog] = useState(false)
+  const [connectionToClose, setConnectionToClose] = useState('')
+  const [refreshCount, setRefreshCount] = useState(0)
+
+  const listConnections = useCallback(async (page: number, perPage: number, sort: ActiveSort | undefined, filters: Filter[]): Promise<TableRowsData> => {
+    return loadFilteredData('connections', artemisService.getConnections.bind(artemisService), page, perPage, sort, filters)
+  }, [])
+
+  const closeConnection = () => {
     artemisService.closeConnection(connectionToClose)
-      .then((value: unknown) => {
-        setShowConnectionCloseDialog(false);
-        setLoadData(loadData + 1);
+      .then((_value) => {
+        setShowConnectionCloseDialog(false)
+        setRefreshCount(c => c + 1)
         eventService.notify({
           type: 'success',
           message: 'Connection Closed',
@@ -70,41 +98,63 @@ export const ConnectionsTable: React.FunctionComponent<Navigate> = (navigate) =>
         })
       })
       .catch((error) => {
-        setShowConnectionCloseDialog(false);
-        eventService.notify({type: 'danger', message: 'Connection Not Closed: ' + jolokiaService.errorMessage(error) })
-      });
-  };
+        setShowConnectionCloseDialog(false)
+        eventService.notify({ type: 'danger', message: 'Connection Not Closed: ' + jolokiaService.errorMessage(error) })
+      })
+  }
 
-  const getRowActions = (row: any): IAction[] => {
+  const getRowActions = (row: TableRow): IAction[] => {
     return [
       {
         title: 'Close',
         onClick: () => {
-          console.log(`clicked on Some action, on row delete ` + row.connectionID);
-          setConnectionToClose(row.connectionID);
-          setShowConnectionCloseDialog(true);
+          console.debug(`clicked on Some action, on row delete ${row.connectionID}`)
+          setConnectionToClose(row.connectionID)
+          setShowConnectionCloseDialog(true)
         }
       }
     ]
-  };
+  }
 
   return (
     <>
-      <ArtemisTable allColumns={defaultColumns} getData={listConnections} storageColumnLocation={columnStorage.connections} getRowActions={getRowActions} loadData={loadData} navigate={navigate.search} filter={navigate.filter}/>
-      <Modal
-        aria-label='connection-close-modal'
-        variant={ModalVariant.medium}
-        title="Close Connection?"
-        isOpen={showConnectionCloseDialog}
-        actions={[
-          <Button key="confirm" variant="primary" onClick={() => closeConnection(connectionToClose)}>
+      <ArtemisTable allColumns={allColumns}
+                    initialFilter={initialFilter}
+                    initialSort={initialSort}
+                    getData={listConnections}
+                    storageColumnLocation={columnStorage.connections}
+                    getRowActions={getRowActions}
+                    refreshCount={refreshCount}
+                    switchTab={props.switchTab}
+                    filters={props.filters}
+                    editGlobalFilter={props.editGlobalFilter} />
+
+      <Modal aria-label='connection-close-modal' variant={ModalVariant.medium} isOpen={showConnectionCloseDialog}
+             onClose={() => setShowConnectionCloseDialog(false)}
+             onKeyDown={(e) => {
+               if (e.key === 'Escape') {
+                 setShowConnectionCloseDialog(false)
+               }
+             }}>
+        <ModalHeader title='Close Connection?' titleIconVariant='warning' />
+        <ModalBody>
+          <Content component={ContentVariants.p}>
+            You are about to close connection with id: <b>{connectionToClose}</b>.
+          </Content>
+          <Content component={ContentVariants.p}>
+            This operation cannot be undone.
+          </Content>
+        </ModalBody>
+        <ModalFooter>
+          <Button key='confirm' variant='danger'  onClick={closeConnection}>
             Confirm
-          </Button>,
-          <Button key="cancel" variant="secondary" onClick={() => setShowConnectionCloseDialog(false)}>
+          </Button>
+          {/* According to https://www.patternfly.org/components/modal/design-guidelines, this should be a link */}
+          <Button key='cancel' variant='link' onClick={() => setShowConnectionCloseDialog(false)}>
             Cancel
           </Button>
-        ]}><p>You are about to close connection with id: <b>{connectionToClose}</b>.</p>
-        <p>This operation cannot be undone.</p>
+        </ModalFooter>
       </Modal>
-    </>)
+    </>
+  )
 }

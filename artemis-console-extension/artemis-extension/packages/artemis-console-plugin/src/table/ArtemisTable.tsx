@@ -14,268 +14,327 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React, { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import React, { useEffect, useMemo, useState } from 'react'
 import {
   Button,
+  Content,
   DataList,
+  DataListCell,
   DataListCheck,
   DataListItem,
-  DataListItemRow,
-  DataListCell,
   DataListItemCells,
-  Toolbar,
-  ToolbarContent,
-  ToolbarItem,
+  DataListItemRow,
+  Divider,
+  Dropdown,
+  DropdownGroup,
+  DropdownItem,
+  DropdownList,
+  Label,
+  LabelColor,
+  LabelGroup,
+  MenuToggle,
   Modal,
+  ModalBody,
+  ModalFooter,
+  ModalHeader,
   Pagination,
   PaginationVariant,
-  Text,
-  TextContent
-} from '@patternfly/react-core';
-import { SortAmountDownIcon } from '@patternfly/react-icons/dist/esm/icons/sort-amount-down-icon';
-import { Thead, Tr, Th, Tbody, Td, IAction, ActionsColumn, Table, InnerScrollContainer } from '@patternfly/react-table';
-import { artemisPreferencesService } from '../artemis-preferences-service';
+  Title,
+  Toolbar,
+  ToolbarContent,
+  ToolbarItem
+} from '@patternfly/react-core'
 import {
-  OptionsMenu,
-  OptionsMenuItem,
-  OptionsMenuItemGroup,
-  OptionsMenuSeparator,
-  OptionsMenuToggle
-} from '@patternfly/react-core/deprecated'
+  ActionsColumn,
+  type IAction,
+  InnerScrollContainer,
+  Table,
+  Tbody,
+  Td,
+  Th,
+  Thead,
+  Tr
+} from '@patternfly/react-table'
+import { SortAmountDownIcon } from '@patternfly/react-icons/dist/esm/icons/sort-amount-down-icon'
 
-import { ArtemisFilters } from './ArtemisFilters';
-import {Simulate} from "react-dom/test-utils";
-import loadedData = Simulate.loadedData;
+import { eventService, jolokiaService } from '@hawtio/react'
 
-export type Column = {
-  id: string
-  name: string
-  visible: boolean
-  sortable: boolean
-  filterable: boolean
-  filter?: Function
-  filterTab?: number
-  link?: Function
-}
+import {
+  type ActiveSort,
+  type ArtemisTabId,
+  ColumnType,
+  type Filter,
+  RemoveFilterScope,
+  SortDirection,
+  type TableColumn,
+  TableFilters,
+  type TableRow,
+  type TableRowsData
+} from './types'
+import { defaultRowsPerPage, pageSizeOptions } from './constants'
+import { artemisPreferencesService } from '../artemis-preferences-service'
+import { ArtemisFilters } from './ArtemisFilters'
+import { operationSymbol } from './utils'
 
-export enum SortDirection {
-  ASCENDING = 'asc',
-  DESCENDING = 'desc'
-}
-
-export type ActiveSort = {
-  id: string
-  order: SortDirection
-}
-
-export type Filter = {
-  column: string
-  operation: string
-  input: string
-}
-
+/**
+ * Definition of additional action (not specific to any particular row) to be added next to filter toolbar
+ */
 export type ToolbarAction = {
+
+  /** Name to be shown as link/button of the action */
   name: string
-  action: Function
+
+  /** Actual action, which usually sets a React state that opens a modal dialog (or similar) */
+  action: () => void
 }
 
-export type TableData = {
-  allColumns: Column[],
-  getData: Function,
-  getRowActions?: Function,
+/**
+ * A type for properties passed to one of the ArtemisTabs components like `<ConnectionsTable>` or `<SessionsTable>`
+ * used for encapsulating global filter functionality and cross-navigation+filtering.
+ */
+export type ArtemisTableFilterProps = {
+
+  /**
+   * A function that can be used from one tab to navigate to another tab with specific filter (like navigating from
+   * sessions tab to see a connection tab showing only the connection of given session).
+   */
+  switchTab: (tab: ArtemisTabId, filter?: Filter) => void
+
+  /**
+   * Read-only value of the current filter (which may not be relevant for a given table, because
+   * it's for an unavailable column)
+   */
+  filters: TableFilters
+
+  /**
+   * When user clicks "filter" for any given table a (field, operation, value) tuple is passed to ArtemisTabView,
+   * so global filter configuration can be changed (new filter added, filter removed)
+   */
+  editGlobalFilter: (filter: Filter, remove?: RemoveFilterScope) => void
+}
+
+/**
+ * All properties (attributes) passed to `<ArtemisTable>`. These properties are configured by individual tables
+ * like `<ConnectionsTable>`.
+ *
+ * By convention:
+ *  - the type for `<Component>` properties is named `ComponentProps`
+ *  - the name for the property collection object passed to a component (if not using JS destructuring) is `props`
+ */
+export type ArtemisTableProps = ArtemisTableFilterProps & {
+
+  /** An array of column definition for the table */
+  allColumns: TableColumn[],
+
+  /** Initial `Filter` to pass to a particular table component */
+  initialFilter: Filter,
+
+  /** Initial sorting for the table */
+  initialSort: ActiveSort,
+
+  /** An asynchronous function used to grab JSON data for all the rows of the table */
+  getData: (page: number, perPage: number, sort: ActiveSort | undefined, filters: Filter[]) => Promise<TableRowsData>,
+
+  /** A function returning row actions for a given row */
+  getRowActions?: (row: TableRow) => IAction[],
+
+  /** Additional actions to use at the top of the table (next to the filter and column management) */
   toolbarActions?: ToolbarAction[],
-  loadData?: number,
+
+  /** A counter for reloading the data due to out-of-bound change (like adding an address or closing a connection) */
+  refreshCount?: number,
+
+  /** An optional key for session storage property prefix to keep tab-specific filter configuration */
   storageColumnLocation?: string
-  navigate?: Function
-  filter?: Filter
 }
 
-export const ArtemisTable: React.FunctionComponent<TableData> = broker => {
+/**
+ * Common component for displaying tables of Artemis objects. It provides an interface (set of accepted properties)
+ * for unified experience with filtering and cross-table navigation (like navigating to session table from connection
+ * table by applying a filter to show only this connection's sessions).
+ *
+ * @param props
+ * @constructor
+ */
+export const ArtemisTable: React.FunctionComponent<ArtemisTableProps> = props => {
 
-const operationOptions = [
-    { id: 'CONTAINS', name: 'Contains' },
-    { id: 'NOT_CONTAINS', name: 'Does Not Contain' },
-    { id: 'EQUALS', name: 'Equals' },
-    { id: 'GREATER_THAN', name: 'Greater Than' },
-    { id: 'LESS_THAN', name: 'Less Than' }
-  ]
-  
-  const initialActiveSort = () => {
-    if (broker.storageColumnLocation && sessionStorage.getItem(broker.storageColumnLocation + '.activesort')) {
-      return JSON.parse(sessionStorage.getItem(broker.storageColumnLocation + '.activesort') as string);
+  const initialColumns: () => TableColumn[] = () => {
+    if (props.storageColumnLocation) {
+      const savedColumns = artemisPreferencesService.loadColumnPreferences(props.storageColumnLocation, props.allColumns)
+      return savedColumns ?? props.allColumns
     }
-    return {
-      id: broker.allColumns[0].id,
-      order: SortDirection.ASCENDING
-    };
+    return props.allColumns
   }
 
-  const initialPerPage = () => {
-    if (broker.storageColumnLocation) {
-      const savedPerPage = artemisPreferencesService.loadTablePageSize(
-        broker.storageColumnLocation
-      );
-      return savedPerPage ?? 10;
+  const initialActiveSort: () => ActiveSort = () => {
+    if (props.storageColumnLocation && sessionStorage.getItem(props.storageColumnLocation + '.activesort')) {
+      return JSON.parse(sessionStorage.getItem(props.storageColumnLocation + '.activesort') as string)
     }
-    return 10;
+    return props.initialSort
   }
 
-  const initialIsCompact = () => {
-    if (perPage == -1) {
-      return true;
-    } else {
-      return false;
+  const initialPerPage: () => number = () => {
+    if (props.storageColumnLocation) {
+      const savedPerPage = artemisPreferencesService.loadTablePageSize(props.storageColumnLocation)
+      return savedPerPage ?? defaultRowsPerPage
     }
+    return defaultRowsPerPage
   }
 
-  const initialColumns = () => {
-    if (broker.storageColumnLocation) {
-      const savedColumns = artemisPreferencesService.loadColumnPreferences(
-        broker.storageColumnLocation, broker.allColumns
-      );
-      return savedColumns ?? broker.allColumns;
-    }
-    return broker.allColumns;
+  const initialIsCompact: () => boolean = () => {
+    return initialPerPage() == -1
   }
 
-  const [rows, setRows] = useState([])
-  const [resultsSize, setresultsSize] = useState(0)
+  // -- two states to keep the server paged/sorted/filtered response
+  const [rows, setRows] = useState<TableRowsData['data']>([])
+  const [resultsSize, setResultsSize] = useState<TableRowsData['count']>(0)
 
-  const [columns, setColumns] = useState(initialColumns);
-  const [activeSort, setActiveSort] = useState(initialActiveSort);
-  const [isSortDropdownOpen, setIsSortDropdownOpen] = useState(false);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [page, setPage] = useState(1);
-  const [perPage, setPerPage] = useState(initialPerPage);
-  const [isCompact, setIsCompact] = useState(initialIsCompact);
-  const rootElement = document.getElementById('root') as HTMLElement;
-  const popperProps = {
-    position: 'right' as const,
-    appendTo: rootElement,
-  };
+  // -- state initialized by component props
+  //    mind that the value (or init-function) is used in React state only on initial mount or re-mount (when key changes),
+  //    but NOT when the component is updated (re-rendered)
+  const [columns, setColumns] = useState(initialColumns)
+  const [activeSort, setActiveSort] = useState<ActiveSort>(initialActiveSort)
 
-  const visibleColumns = columns.filter((column) => column.visible);
+  // -- state initialized with defaults
+  const [page, setPage] = useState(1)
+  const [perPage, setPerPage] = useState(initialPerPage)
+  const [isCompact, setIsCompact] = useState(initialIsCompact)
 
-  const initialFilter = () =>  {
-    if (broker.storageColumnLocation && sessionStorage.getItem(broker.storageColumnLocation + '.filter')) {
-      return JSON.parse(sessionStorage.getItem(broker.storageColumnLocation + '.filter') as string);
-    }
-    return {
-      column: columns[1].id,
-      operation: operationOptions[0].id,
-      input: ''
-    }
-  }
+  // -- state for modals
+  const [isSortDropdownOpen, setIsSortDropdownOpen] = useState(false)
+  const [isModalOpen, setIsModalOpen] = useState(false)
 
-  if (broker.filter) {
-    sessionStorage.setItem(broker.storageColumnLocation + '.filter', JSON.stringify(broker.filter));
-  }
+  const visibleColumns = columns.filter((column) => column.visible)
 
-  const [filter, setFilter] = useState(() => broker.filter !== undefined ? broker.filter : initialFilter());
+  // Filters applicable to current tab
+  const tabFilters = useMemo(() => {
+    return props.filters.searchFilters.filter(f => f.tab === props.initialFilter.tab)
+  }, [props.filters.searchFilters, props.initialFilter.tab])
 
-  const listData = async () => {
-    const data = await broker.getData(page, perPage, activeSort, filter);
-    setRows(data.data);
-    setresultsSize(data.count);
-  };
+  const displayFilter = tabFilters.length > 0 ? tabFilters[tabFilters.length - 1] : props.initialFilter
 
+  // main data loading effect for lazy population of the table
   useEffect(() => {
-    listData();
-  }, [page, perPage, activeSort, filter, broker.loadData]);
+    let apply = true
+    props.getData(page, perPage, activeSort, tabFilters)
+        .then(rowsData => {
+          if (apply) {
+            setRows(rowsData.data)
+            setResultsSize(rowsData.count)
+          }
+        })
+        .catch(error => {
+          if (apply) {
+            setRows([])
+            setResultsSize(0)
+            eventService.notify({ type: 'danger', message: 'Problem populating data: ' + jolokiaService.errorMessage(error) })
+          }
+        })
+    return () => {
+      apply = false
+    }
+  }, [page, perPage, activeSort, tabFilters, props.getData, props.refreshCount])
 
   const handleModalToggle = () => {
-    setIsModalOpen(!isModalOpen);
-  };
+    setIsModalOpen(!isModalOpen)
+  }
 
   const onSave = () => {
-    setIsModalOpen(!isModalOpen);
+    setIsModalOpen(!isModalOpen)
 
-    if (broker.storageColumnLocation) {
-      artemisPreferencesService.saveColumnPreferences(broker.storageColumnLocation, columns);
+    if (props.storageColumnLocation) {
+      artemisPreferencesService.saveColumnPreferences(props.storageColumnLocation, columns)
     }
-  };
+  }
 
   const selectAllColumns = () => {
     const updatedColumns = [...columns]
     updatedColumns.map((column) => {
-      column.visible = true;
-      return true;
+      column.visible = true
+      return true
     })
-    setColumns(updatedColumns);
-  };
+    setColumns(updatedColumns)
+  }
 
   const unselectAllColumns = () => {
     const updatedColumns = [...columns]
     updatedColumns.map((column) => {
-      column.visible = false;
-      return false;
+      column.visible = false
+      return false
     })
-    setColumns(updatedColumns);
-  };
+    setColumns(updatedColumns)
+  }
 
-  const updateColumnStatus = (index: number, column: Column) => {
-    const updatedColumns = [...columns];
-    updatedColumns[index].visible = !columns[index].visible;
-    setColumns(updatedColumns);
+  const updateColumnStatus = (index: number, _column: TableColumn) => {
+    const updatedColumns = [...columns]
+    updatedColumns[index].visible = !columns[index].visible
+    setColumns(updatedColumns)
   }
 
   const updateActiveSort = (id: string, order: SortDirection) => {
     const updatedActiveSort: ActiveSort = {
-      id: id,
+      column: id,
       order: order
-    };
+    }
     setActiveSort(updatedActiveSort)
-    sessionStorage.setItem(broker.storageColumnLocation + ".activesort",JSON.stringify(updatedActiveSort));
+    sessionStorage.setItem(props.storageColumnLocation + '.activesort',JSON.stringify(updatedActiveSort))
   }
 
-  const getRowActions = (row: never): IAction[] => {
-    if (broker.getRowActions) {
-      return broker.getRowActions(row);
+  const getRowActions = (row: TableRowsData['data'][number]): IAction[] => {
+    if (props.getRowActions) {
+      return props.getRowActions(row)
     }
-    return [];
-  };
+    return []
+  }
 
   const handleSetPage = (_event: React.MouseEvent | React.KeyboardEvent | MouseEvent, newPage: number) => {
-    setPage(newPage);
-  };
+    setPage(newPage)
+  }
 
   const handlePerPageSelect = (_event: React.MouseEvent | React.KeyboardEvent | MouseEvent, newPerPage: number) => {
     if (newPerPage === -1) {
-      setIsCompact(true);
-      setPerPage(resultsSize);
+      setIsCompact(true)
+      setPerPage(-1)
     } else {
-      setIsCompact(false);
-      setPerPage(newPerPage);
+      setIsCompact(false)
+      setPerPage(newPerPage)
     }
-    setPage(1);
-    if(broker.storageColumnLocation) {
-      artemisPreferencesService.saveTablePageSize(broker.storageColumnLocation, newPerPage)
+    setPage(1)
+    if(props.storageColumnLocation) {
+      artemisPreferencesService.saveTablePageSize(props.storageColumnLocation, newPerPage)
     }
-  };
-
-  const getKeyByValue = (producer: never, columnName: string) => {
-    return producer[columnName];
   }
 
-  const handleClick = (column: Column, row: any) => () => {
+  /**
+   * Returns a value or any react component to be put into a cell
+   * @param producer
+   * @param column
+   */
+  const getCellValue = (producer: TableRowsData['data'][number], column: TableColumn) => {
+    const v = producer[column.id]
+    if (column.component) {
+      return column.component(v)
+    }
+    return v
+  }
+
+  const handleClick = (column: TableColumn, row: TableRow) => () => {
     if (column.filter) {
-      const filter = column.filter(row);
-      if (broker.navigate) {
-        broker.navigate(column.filterTab, filter);
+      const filter = column.filter(row)
+      if (props.switchTab) {
+        props.switchTab(filter.tab, filter)
       }
     } else if (column.link) {
-      column.link(row);
+      column.link(row)
     }
-  };
+  }
 
-  const pageSizeOptions = [
-    { title: '10 per page', value: 10 },
-    { title: '20 per page', value: 20 },
-    { title: '50 per page', value: 50 },
-    { title: '100 per page', value: 100 },
-    { title: 'All items', value: -1 },
-  ];
+  // function used both by <ArtemisFilters> (to add and clear filters) and by the label group (to clear one or all
+  // the filters from a given path)
+  const applyFilter = (filter: Filter, remove?: RemoveFilterScope) => {
+    setPage(1)
+    props.editGlobalFilter(filter, remove)
+  }
 
   const renderPagination = (variant: PaginationVariant | undefined) => (
     <Pagination
@@ -292,192 +351,212 @@ const operationOptions = [
         perPageSuffix: ''
       }}
     />
-  );
-  const renderModal = () => {
+  )
+
+  const renderManageColumnsModal = () => {
     return (
       <Modal
-        title="Manage columns"
         isOpen={isModalOpen}
-        variant="small"
-        description={
-          <TextContent>
-            <Text>Selected categories are displayed in the table.</Text>
-            <Button isInline onClick={selectAllColumns} variant="link">
+        variant='small'
+        onClose={handleModalToggle}
+      >
+        <ModalHeader>
+          <Title headingLevel='h2' size='lg'>Manage Columns</Title>
+          <Content>Selected categories are displayed in the table.</Content>
+          <Content>
+            <Button isInline onClick={selectAllColumns} variant='link'>
               Select all
             </Button>{ ' | ' }
-            <Button isInline onClick={unselectAllColumns} variant="link">
+            <Button isInline onClick={unselectAllColumns} variant='link'>
               Unselect all
             </Button>
-          </TextContent>
-        }
-        onClose={handleModalToggle}
-        actions={[
-          <Button id='columns-save-button' key="save" variant="primary" onClick={onSave}>
+          </Content>
+        </ModalHeader>
+        <ModalBody>
+          <DataList aria-label='Table column management' id='table-column-management' isCompact>
+            {columns.map((column, id) => (
+              <DataListItem key={`table-column-management-${column.id}`} aria-labelledby={`table-column-management-${column.id}`}>
+                <DataListItemRow>
+                  <DataListCheck
+                    aria-labelledby={`table-column-management-item-${column.id}`}
+                    isChecked={column.visible}
+                    name={`check-${column.id}`}
+                    id={`check-${column.id}`}
+                    onChange={_checked => updateColumnStatus(id, column)}
+                  />
+                  <DataListItemCells
+                    dataListCells={[
+                      <DataListCell id={`table-column-management-item-${column.id}`} key={`table-column-management-item-${column.id}`}>
+                        <label htmlFor={`check-${column.id}`}>{column.name}</label>
+                      </DataListCell>
+                    ]}
+                  />
+                </DataListItemRow>
+              </DataListItem>
+            ))}
+          </DataList>
+        </ModalBody>
+        <ModalFooter>
+          <Button id='columns-save-button' key='save' variant='primary' onClick={onSave}>
             Save
-          </Button>,
-          <Button key="close" variant="secondary" onClick={handleModalToggle}>
+          </Button>
+          <Button key='close' variant='link' onClick={handleModalToggle}>
             Cancel
           </Button>
-        ]}
-      >
-        <DataList aria-label="Table column management" id="table-column-management" isCompact>
-          {columns.map((column, id) => (
-            <DataListItem key={`table-column-management-${column.id}`} aria-labelledby={`table-column-management-${column.id}`}>
-              <DataListItemRow>
-                <DataListCheck
-                  aria-labelledby={`table-column-management-item-${column.id}`}
-                  checked={column.visible}
-                  name={`check-${column.id}`}
-                  id={`check-${column.id}`}
-                  onChange={checked => updateColumnStatus(id, column)}
-                />
-                <DataListItemCells
-                  dataListCells={[
-                    <DataListCell id={`table-column-management-item-${column.id}`} key={`table-column-management-item-${column.id}`}>
-                      <label htmlFor={`check-${column.id}`}>{column.name}</label>
-                    </DataListCell>
-                  ]}
-                />
-              </DataListItemRow>
-            </DataListItem>
-          ))}
-        </DataList>
+        </ModalFooter>
       </Modal>
-    );
-  };
+    )
+  }
 
   return (
-    <React.Fragment>
-
-      <Toolbar id="toolbar">
+    <>
+      <Toolbar id='artemis-tabs-toolbar'>
         <ToolbarContent>
+          {/* Sorting */}
           <ToolbarItem key='address-sort'>
-            <OptionsMenu
-              id="options-menu-multiple-options-example"
-              menuItems={[
-                <OptionsMenuItemGroup key="sort-columns" aria-label="Sort column">
-                  {Object.values(broker.allColumns).filter((element) => element.visible).map((column, columnIndex) => (
-                    <OptionsMenuItem
-                      key={column.id}
-                      isSelected={activeSort.id === column.id}
-                      onSelect={() => {
-                        updateActiveSort(column.id, activeSort.order)
-                      }}
-                    >
+            <Dropdown
+                isOpen={isSortDropdownOpen}
+                toggle={(toggleRef) => (
+                  <MenuToggle variant='plain' ref={toggleRef} onClick={() => setIsSortDropdownOpen(!isSortDropdownOpen)}>
+                    <SortAmountDownIcon />
+                  </MenuToggle>
+                )}>
+              <DropdownGroup key='sort-columns' aria-label='Sort column'>
+                <DropdownList>
+                  {Object.values(props.allColumns).filter((element) => element.visible).map((column, _columnIndex) => (
+                    <DropdownItem key={column.id} isSelected={activeSort.column === column.id} value={column.name}
+                                  onClick={() => updateActiveSort(column.id, activeSort.order)}>
                       {column.name}
-                    </OptionsMenuItem>
+                    </DropdownItem>
                   ))}
-                </OptionsMenuItemGroup>,
-                <OptionsMenuSeparator key="separator" />,
-                <OptionsMenuItemGroup key="sort-direction" aria-label="Sort direction">
-                  <OptionsMenuItem
-                    onSelect={() => updateActiveSort(activeSort.id, SortDirection.ASCENDING)}
-                    isSelected={activeSort.order === SortDirection.ASCENDING}
-                    id="ascending"
-                    key="ascending"
-                  >
+                </DropdownList>
+              </DropdownGroup>
+              <Divider key='separator' />
+              <DropdownGroup key='sort-direction' aria-label='Sort direction'>
+                <DropdownList>
+                  <DropdownItem key='ascending' isSelected={activeSort.order === SortDirection.ASCENDING}
+                                onClick={() => updateActiveSort(activeSort.column!, SortDirection.ASCENDING)}>
                     Ascending
-                  </OptionsMenuItem>
-                  <OptionsMenuItem
-                    onSelect={() => updateActiveSort(activeSort.id, SortDirection.DESCENDING)}
-                    isSelected={activeSort.order === SortDirection.DESCENDING}
-                    id="descending"
-                    key="descending"
-                  >
+                  </DropdownItem>
+                  <DropdownItem key='descending' isSelected={activeSort.order === SortDirection.DESCENDING}
+                                onClick={() => updateActiveSort(activeSort.column!, SortDirection.DESCENDING)}>
                     Descending
-                  </OptionsMenuItem>
-                </OptionsMenuItemGroup>
-              ]}
-              isOpen={isSortDropdownOpen}
-              toggle={
-                <OptionsMenuToggle
-                  hideCaret
-                  onToggle={() => setIsSortDropdownOpen(!isSortDropdownOpen)}
-                  toggleTemplate={<SortAmountDownIcon />}
-                />
-              }
-              isPlain
-              isGrouped
-            />
+                  </DropdownItem>
+                </DropdownList>
+              </DropdownGroup>
+            </Dropdown>
+          </ToolbarItem>
+          <ToolbarItem variant='separator' />
+
+          {/* field|operation|value|[filter]|[clear] */}
+          <ArtemisFilters key={`${displayFilter.column}:${displayFilter.operation}:${displayFilter.input}`}
+                          columns={columns} filter={displayFilter} onApplyFilter={applyFilter} />
+          <ToolbarItem variant='separator' />
+
+          {/* Single button for column management of the current table */}
+          <ToolbarItem key='column-select'>
+            <Button variant='link' onClick={handleModalToggle}>Manage Columns ({visibleColumns.length}/{columns.length})</Button>
           </ToolbarItem>
 
-          <ArtemisFilters
-            columns={columns}
-            operationOptions={operationOptions}
-            initialFilter={filter}
-            onApplyFilter={(f) => {
-              setPage(1);
-              setFilter(f);
-              if (broker.storageColumnLocation) {
-                sessionStorage.setItem(broker.storageColumnLocation + '.filter', JSON.stringify(f));
-              }
-            }}
-          />
-
-          <ToolbarItem key="column-select">
-            <Button variant='link' onClick={handleModalToggle}>Manage Columns</Button>
-          </ToolbarItem>
+          {/* Additional actions configured by the components using ArtemisTable */}
+          {(props.toolbarActions?.length ?? 0) > 0 && (<ToolbarItem variant='separator'></ToolbarItem>)}
           {
-            broker.toolbarActions?.map(action => (
-              <ToolbarItem key={"toolbar-action-" + action.name}>
-                <Button variant='link' onClick={() => action.action()}>{action.name}</Button>
+            props.toolbarActions?.map(action => (
+              <ToolbarItem key={'toolbar-action-' + action.name}>
+                <Button size='sm' variant='secondary' onClick={() => action.action()}>{action.name}</Button>
               </ToolbarItem>))
           }
         </ToolbarContent>
       </Toolbar>
 
-      <InnerScrollContainer>
-      <Table variant="compact" aria-label="Data Table" id='data-table'>
-      <Thead>
-        <Tr>
-          {visibleColumns.map((column, id) => {
-
-            const isSorted = column.id === activeSort.id;
-            const direction = isSorted ? activeSort.order : undefined;
-            const nextDirection =
-              isSorted && activeSort.order === SortDirection.ASCENDING
-                ? SortDirection.DESCENDING
-                : SortDirection.ASCENDING;
-            return (
-              <Th
-                key={id}
-                sort={{
-                  sortBy: {
-                    index: id,
-                    direction: direction === SortDirection.ASCENDING ? 'asc' : 'desc'
-                  },
-                  onSort: () => updateActiveSort(column.id, nextDirection),
-                  columnIndex: id
-                }}
-              >{column.name}</Th>
-            );
-          })}
-        </Tr>
-      </Thead>
-        <Tbody>
-          {rows.map((row, rowIndex) => (
-            <Tr key={rowIndex}>
-              {visibleColumns.map((column, id) => {
-                const key = getKeyByValue(row, column.id)
-                if(column.filter || column.link) {
-                  return <Td key={id}><Link to="" onClick={handleClick(column, row)}>{key}</Link></Td>
-                } else {
-                  return <Td key={id}>{key}</Td>
+      {/* Optional toolbar if there are any applicable filters */}
+      {tabFilters.length > 0 && (<Toolbar>
+        <ToolbarContent>
+          <ToolbarItem>
+            <LabelGroup categoryName='Filters' isClosable onClick={() => applyFilter(tabFilters[0], RemoveFilterScope.ALL)}>
+              {tabFilters.map((f, idx) => {
+                const column = columns.find(c => c.id === f.column)
+                if (column) {
+                  const columnName = column.name
+                  let prefix = ''
+                  if (column.type === ColumnType.BOOLEAN) {
+                    if (f.operation === 'EQUALS') {
+                      prefix = 'true' === f.input ? 'IS ' : 'IS NOT '
+                    } else if (f.operation === 'NOT_EQUALS') {
+                      prefix = 'false' === f.input ? 'IS ' : 'IS NOT '
+                    }
+                  }
+                  const suffix = column.type !== ColumnType.BOOLEAN ? ` ${operationSymbol(f.operation)} ${f.input}` : ''
+                  // const prefix =
+                  return (
+                      <Label key={`f-${idx}`} color={LabelColor.purple} onClose={() => applyFilter(f, RemoveFilterScope.SINGLE)}>
+                        {prefix}{columnName ?? f.column}{suffix}
+                      </Label>
+                  )
                 }
               })}
-              <Td isActionCell>
-                <ActionsColumn
-                  items={getRowActions(row)}
-                  popperProps={popperProps}
-                />
-              </Td>
-          </Tr>
-          ))}
-        </Tbody>
-      </Table>
+            </LabelGroup>
+          </ToolbarItem>
+        </ToolbarContent>
+      </Toolbar>)}
+      {/*{tabFilters.length == 0 && (<Alert isInline isPlain title='Click "Filter" to add first filter condition' variant='info' />)}*/}
+
+      <Divider />
+
+      <InnerScrollContainer>
+        <Table id='data-table' isStickyHeader variant='compact' aria-label='Data Table'>
+          <Thead>
+            <Tr>
+              {visibleColumns.map((column, id) => {
+                const isSorted = column.id === activeSort.column
+                const direction = isSorted ? activeSort.order : undefined
+                const nextDirection =
+                  isSorted && activeSort.order === SortDirection.ASCENDING
+                    ? SortDirection.DESCENDING
+                    : SortDirection.ASCENDING
+                return (
+                  <Th
+                    key={id}
+                    sort={{
+                      sortBy: {
+                        index: id,
+                        direction: direction === SortDirection.ASCENDING ? 'asc' : 'desc'
+                      },
+                      onSort: () => updateActiveSort(column.id, nextDirection),
+                      columnIndex: id
+                    }}
+                  >{column.name}</Th>
+                )
+              })}
+              <Th aria-label='actions' />
+            </Tr>
+          </Thead>
+          <Tbody>
+            {rows.map((row, rowIndex) => {
+              const rowActions = getRowActions(row)
+              return (
+                  <Tr key={rowIndex}>
+                    {visibleColumns.map((column, id) => {
+                      const key = getCellValue(row, column)
+                      if (column.filter || column.link) {
+                        return <Td key={id}><Button variant='link' isInline
+                                                    onClick={handleClick(column, row)}>{key}</Button></Td>
+                      } else {
+                        return <Td key={id}>{key}</Td>
+                      }
+                    })}
+                    <Td isActionCell>
+                      <ActionsColumn items={rowActions} popperProps={{ position: 'end' }} isDisabled={rowActions.length === 0} />
+                    </Td>
+                  </Tr>
+              )
+            })}
+          </Tbody>
+        </Table>
       </InnerScrollContainer>
+
       {renderPagination(PaginationVariant.bottom)}
-      {renderModal()}
-    </React.Fragment>
-  );
-};
+      {renderManageColumnsModal()}
+    </>
+  )
+}

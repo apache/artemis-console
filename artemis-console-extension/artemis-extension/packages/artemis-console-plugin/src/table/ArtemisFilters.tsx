@@ -15,103 +15,205 @@
  * limitations under the License.
  */
 
-import React, { useRef, useState } from 'react';
-import { Button, Select, SelectList, SelectOption, MenuToggleElement, MenuToggle, TextInput, ToolbarItem } from '@patternfly/react-core';
+import React, { useRef, useState } from 'react'
+import {
+  Button,
+  MenuToggle,
+  MenuToggleElement,
+  SearchInput,
+  Select,
+  SelectList,
+  SelectOption,
+  Switch,
+  ToolbarItem
+} from '@patternfly/react-core'
 
+import { ColumnType, type Filter, RemoveFilterScope, type TableColumn } from './types'
+import { operationOptions } from './constants'
+import { availableOperations } from './utils'
+
+/**
+ * Type for properties of `<ArtemisFilters>` component
+ */
 export type ArtemisFiltersProps = {
-  columns: { id: string; name: string; visible: boolean }[];
-  operationOptions: { id: string; name: string }[];
-  initialFilter: { column: string; operation: string; input: string };
-  onApplyFilter: (filter: { column: string; operation: string; input: string }) => void;
-};
+  /** Partial column information to build a filtering UI */
+  columns: Pick<TableColumn, 'id'|'name'|'type'|'visible'|'filterable'>[]
+  /** Last applied filter for the tab or initial filter */
+  filter: Filter
+  /** Clicking "filter" propagates the filter information up, so it can be added to globally applicable filters */
+  onApplyFilter: (filter: Filter, remove?: RemoveFilterScope) => void
+}
 
-export const ArtemisFilters: React.FC<ArtemisFiltersProps> = ({ columns, operationOptions, initialFilter, onApplyFilter }) => {
-  const searchRef = useRef<HTMLInputElement>(null);
+/**
+ * A component that shows a single `Filter` (column+operation+value) for current table. One filter can be then added
+ * to a global set of effective filters for all the tables.
+ * When there are filters applied for given tab, this component tries to show the last filter for this tab, so it can
+ * be quickly "cleared" - then the next last filter will be presented for better UX.
+ *
+ * @param columns
+ * @param filter
+ * @param onApplyFilter
+ */
+export const ArtemisFilters: React.FC<ArtemisFiltersProps> = ({ columns, filter, onApplyFilter }) => {
+  const searchRef = useRef<HTMLInputElement>(null)
 
-  const [filterColumn, setFilterColumn] = useState(
-    columns.find(c => c.id === initialFilter.column)
-  );
-  const [filterOperation, setFilterOperation] = useState(
-    operationOptions.find(o => o.id === initialFilter.operation)
-  );
+    // Filter -> UI state mapping, shared by useState initializers and resetTo()
+  const columnFor = (f: Filter) => columns.find(c => c.filterable && c.id === f.column)
+  const operationFor = (f: Filter) => {
+    const column = columnFor(f)
+    if (!column) {
+      return undefined
+    }
+    const op = availableOperations(column.type).find(o => o === f.operation)
+    return operationOptions.find(o => o.id === op)
+  }
+  const booleanFor = (f: Filter) => columnFor(f)?.type === ColumnType.BOOLEAN && f.input === 'true'
 
-  const [columnOpen, setColumnOpen] = useState(false);
-  const [operationOpen, setOperationOpen] = useState(false);
+  // initial filter column|operation|value always comes from the props.
+  const [filterColumn, setFilterColumn] = useState(() => columnFor(filter))
+  const [filterOperation, setFilterOperation] = useState(() => operationFor(filter))
+  const [booleanOption, setBooleanOption] = useState(() => booleanFor(filter))
 
-  const visibleColumns = columns.filter(c => c.visible);
+  const [columnOpen, setColumnOpen] = useState(false)
+  const [operationOpen, setOperationOpen] = useState(false)
 
+  const filterableColumns = columns.filter(c => c.filterable)
+  const visibleOperations = filterColumn
+      ? availableOperations(filterColumn.type).map(available => operationOptions.find(op => op.id === available)!)
+      : undefined
+
+  // applying a filter using "Filter" or enter calls up the method passed as onApplyFilter, which updates the global
+  // filter which leads to new data being fetched and re-render of ArtemisTable and ArtemisFilters
   const applyFilter = () => {
-    const filterValue = searchRef.current?.value ?? "";
-    if (filterOperation && filterColumn) {
-      onApplyFilter({ column: filterColumn.id, operation: filterOperation.id, input: filterValue });
+    if (filterColumn?.type === ColumnType.BOOLEAN) {
+      if (filterOperation) {
+        onApplyFilter({ tab: filter.tab, column: filterColumn.id, operation: filterOperation.id, input: booleanOption ? 'true' : 'false' })
+      }
+    } else if (searchRef.current) {
+      if (filterOperation && filterColumn) {
+        onApplyFilter({ tab: filter.tab, column: filterColumn.id, operation: filterOperation.id, input: searchRef.current?.value ?? '' })
+      }
+    }
+  }
+
+  /**
+   * Clearing current filter (a tuple of "column", "operation" and "value") removes the filter from global filters for
+   * current tab and also picks up the last available filter to be shown. This allows to quickly click "Clear" again.
+   */
+  const clearFilter = () => {
+    if (filterColumn && filterOperation) {
+      const input = filterColumn.type === ColumnType.BOOLEAN ? booleanOption ? 'true' : 'false' : searchRef.current?.value
+      // pass current column|operation|value for removal from global filters
+      onApplyFilter({ tab: filter.tab, column: filterColumn.id, operation: filterOperation.id, input }, RemoveFilterScope.SINGLE)
+    }
+
+    // even if the clearing doesn't remove a filter from the global list, we want to bring back the
+    // last filter or initial filter, so clicking "clear" again will remove it.
+    setFilterColumn(columnFor(filter))
+    setFilterOperation(operationFor(filter))
+    setBooleanOption(booleanFor(filter))
+    if (searchRef.current) {
+      searchRef.current.value = filter.input ? `${filter.input}` : ''
+    }
+  }
+
+  const adjustOperationList = (column?: ArtemisFiltersProps['columns'][number]) => {
+    if (!column) {
+      setFilterOperation(undefined)
+    } else {
+      const ops = availableOperations(column.type).map(available => operationOptions.find(op => op.id === available)!)
+      if (!ops.find(op => op === filterOperation)) {
+        // select first if current operation is not available for given type of changed column
+        setFilterOperation(ops[0])
+      }
     }
   }
 
   return (
     <>
-      <ToolbarItem variant="search-filter" key='column-id-select'>
-        <Select
+      <ToolbarItem key='column-id-select'>
+        <Select isScrollable
           toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
-            <MenuToggle isFullWidth role='menu' ref={toggleRef} onClick={() => setColumnOpen(prev => !prev)}>
-              {filterColumn?.name}
+            <MenuToggle isFullWidth isDisabled={filterableColumns.length == 0} role='menu' ref={toggleRef} onClick={() => setColumnOpen(prev => !prev)}>
+              {filterColumn?.name || ''}
             </MenuToggle>
           )}
-          aria-label="Select Input"
+          aria-label='Select Column'
           isOpen={columnOpen}
           onOpenChange={setColumnOpen}
           onSelect={(_e, selection) => {
-            const selectedColumn = columns.find(c => c.name === selection);
-            setFilterColumn(selectedColumn);
-            setColumnOpen(false); }}
-          selected={filterColumn?.name}
+            const selectedColumn = columns.find(c => c.name === selection)
+            setFilterColumn(selectedColumn)
+            adjustOperationList(selectedColumn)
+            if (searchRef.current) {
+              searchRef.current.value = ''
+            }
+            setBooleanOption(false)
+            setColumnOpen(false)
+          }}
+          selected={filterColumn?.name || ''}
         >
           <SelectList>
-            {visibleColumns.map(column => (
+            {filterableColumns.map(column => (
               <SelectOption key={column.id} value={column.name}>{column.name}</SelectOption>
             ))}
           </SelectList>
         </Select>
       </ToolbarItem>
 
-      <ToolbarItem variant="search-filter" key="filter-type">
+      <ToolbarItem key='filter-operation'>
         <Select
           toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
-            <MenuToggle isFullWidth role='menu' ref={toggleRef} onClick={() => setOperationOpen(prev => !prev)}>
+            <MenuToggle isFullWidth isDisabled={filterableColumns.length == 0} role='menu' ref={toggleRef} onClick={() => setOperationOpen(prev => !prev)}>
               {filterOperation?.name}
             </MenuToggle>
           )}
-          aria-label="Select Input"
+          aria-label='Select Operation'
           isOpen={operationOpen}
           onOpenChange={setOperationOpen}
           onSelect={(_e, selection) => {
-            const selectedOperation = operationOptions.find(o => o.name === selection);
-            setFilterOperation(selectedOperation);
-            setOperationOpen(false); }}
+            const selectedOperation = operationOptions.find(o => o.name === selection)
+            setFilterOperation(selectedOperation)
+            setOperationOpen(false) }}
           selected={filterOperation?.name}
         >
           <SelectList>
-            {operationOptions.map(operation => (
+            {visibleOperations?.map(operation => (
               <SelectOption key={operation.id} value={operation.name}>{operation.name}</SelectOption>
             ))}
           </SelectList>
         </Select>
       </ToolbarItem>
 
-      <ToolbarItem variant="search-filter" key="search=text">
-        <TextInput
-          aria-label="Search"
-          ref={searchRef}
-          defaultValue={initialFilter.input}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              applyFilter();
-            }
-          }
-        }
-        />
+      <ToolbarItem key='filter-value'>
+        {filterColumn && filterColumn.type !== ColumnType.BOOLEAN && (
+            <SearchInput
+              aria-label='Filter'
+              ref={searchRef}
+              value={filterColumn.id === filter.column && filter.input ? `${filter.input}` : ''}
+              onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    applyFilter()
+                  }
+                  if (e.key === 'Escape') {
+                    if (searchRef.current) {
+                      searchRef.current.value = ''
+                    }
+                  }
+                }
+              }
+              isDisabled={filterableColumns.length == 0}
+            />
+        )}
+        {filterColumn && filterColumn.type === ColumnType.BOOLEAN && (
+            <Switch aria-label='Filter'
+                    isChecked={booleanOption}
+                    onChange={(_event, checked) => setBooleanOption(checked)} />
+        )}
       </ToolbarItem>
 
-      <Button onClick={applyFilter}>Search</Button>
+      <Button onClick={applyFilter} isDisabled={filterableColumns.length == 0} size='sm'>Filter</Button>
+      <Button onClick={clearFilter} isDisabled={filterableColumns.length == 0} size='sm' variant='secondary'>Clear</Button>
     </>
-  );
-};
+  )
+}
