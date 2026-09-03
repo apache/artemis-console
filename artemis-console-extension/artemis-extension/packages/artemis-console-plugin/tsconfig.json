@@ -44,6 +44,9 @@
 
     /* Type Checking */
     "strict": true,
+
+    /* Completeness */
+    "skipLibCheck": true
   },
   "include": [ "src" ]
 }

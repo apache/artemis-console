@@ -14,82 +14,96 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { ActionGroup, Text, Button, Form, Icon, Modal, ModalVariant, TextContent, Title, Popover } from '@patternfly/react-core';
 import React, { useState } from 'react'
-import { ExclamationCircleIcon } from '@patternfly/react-icons/dist/esm/icons/exclamation-circle-icon';
-import { eventService, jolokiaService, workspace } from '@hawtio/react';
-import { artemisService } from '../artemis-service';
-import { OutlinedQuestionCircleIcon } from '@patternfly/react-icons/dist/esm/icons/outlined-question-circle-icon';
+import {
+  Content,
+  Button,
+  Modal,
+  ModalVariant,
+  Title,
+  Popover,
+  ModalFooter,
+  ModalBody,
+  ModalHeader,
+  ContentVariants,
+  Panel,
+  PanelHeader,
+  PanelFooter
+} from '@patternfly/react-core'
+import { OutlinedQuestionCircleIcon } from '@patternfly/react-icons/dist/esm/icons/outlined-question-circle-icon'
+
+import { eventService, jolokiaService, workspace } from '@hawtio/react'
+
+import { artemisService } from '../artemis-service'
+import { closeWithEscape } from '../table/utils'
 
 type DeleteAddressProps = {
   address: string
 }
-export const DeleteAddress: React.FunctionComponent<DeleteAddressProps> = (props: DeleteAddressProps) => {
 
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
+export const DeleteAddress: React.FunctionComponent<DeleteAddressProps> = props => {
+
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
 
   const handleDeleteAddress = () => {
     artemisService.deleteAddress(props.address)
       .then(() => {
-        setShowDeleteModal(false);
-
-        workspace.refreshTree();
+        setShowDeleteModal(false)
+        workspace.refreshTree()
         eventService.notify({
           type: 'success',
-          message: "Address Successfully Deleted",
+          message: 'Address Successfully Deleted',
         })
       })
       .catch((error) => {
-        setShowDeleteModal(false);
-        eventService.notify({type: 'warning', message: jolokiaService.errorMessage(error) })
+        setShowDeleteModal(false)
+        eventService.notify({ type: 'warning', message: jolokiaService.errorMessage(error) })
       })
-  };
+  }
 
   const Hint = () => (
-    <TextContent>
-        <Text component='p'>
-          Use this page to delete the selected address on the broker. The address is deleted only if it has no queues bound to it.
-        </Text>
-    </TextContent>
-)
+    <Content>
+      <Content component='p'>
+        Use this page to delete the selected address on the broker. The address is deleted only if it has no queues bound to it.
+      </Content>
+    </Content>
+  )
 
   return (
     <>
-      <Title headingLevel="h2">Delete Address {props.address}{' '}
-          <Popover bodyContent={Hint}><OutlinedQuestionCircleIcon /></Popover>
-      </Title>
-      <Form>
-        <ActionGroup>
-          <Button variant="primary" onClick={() => setShowDeleteModal(true)} >Delete</Button>
-        </ActionGroup>
-      </Form><Modal
-      aria-label='delete-address-modal'
-      variant={ModalVariant.medium}
-      isOpen={showDeleteModal}
-      onClose={() => setShowDeleteModal(false)}
-      actions={[
-        <Button key="cancel" variant="secondary" onClick={() => handleDeleteAddress()}>
-          Cancel
-        </Button>,
-        <Button key="delete" variant="primary" onClick={handleDeleteAddress}>
-          Confirm
-        </Button>
-      ]}>
-      <TextContent>
-        <Text component="h2">
-          Confirm Delete Address
-        </Text>
-        <Text component="p">
-          <Icon isInline status='warning'>
-            <ExclamationCircleIcon />
-          </Icon>
-          You are about to delete address {props.address}
-        </Text>
-        <Text component="p">
-          This operation cannot be undone.
-        </Text>
-      </TextContent>
-    </Modal>
+      <Panel>
+        <PanelHeader>
+          <Title headingLevel='h2' size='lg'>
+            Delete Address {props.address}{' '}
+            <Popover bodyContent={Hint}><OutlinedQuestionCircleIcon /></Popover>
+          </Title>
+        </PanelHeader>
+        <PanelFooter>
+          <Button variant='primary' onClick={() => setShowDeleteModal(true)} >Delete</Button>
+        </PanelFooter>
+      </Panel>
+
+      <Modal aria-label='delete-address-modal' variant={ModalVariant.small} isOpen={showDeleteModal}
+             onClose={() => setShowDeleteModal(false)}
+             onKeyDown={closeWithEscape(setShowDeleteModal)}>
+        <ModalHeader title='Delete Address?' titleIconVariant='warning' />
+        <ModalBody>
+          <Content component={ContentVariants.p}>
+            You are about to delete address: <b>{props.address}</b>.
+          </Content>
+          <Content component={ContentVariants.p}>
+            This operation cannot be undone.
+          </Content>
+        </ModalBody>
+        <ModalFooter>
+          <Button key='delete' variant='danger' onClick={handleDeleteAddress}>
+            Confirm
+          </Button>
+          <Button key='cancel' variant='link' onClick={() => setShowDeleteModal(false)}>
+            Cancel
+          </Button>
+        </ModalFooter>
+      </Modal>
     </>
   )
 }

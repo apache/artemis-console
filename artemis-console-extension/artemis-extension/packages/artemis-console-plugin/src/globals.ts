@@ -24,7 +24,7 @@ export const artemisNetworkPluginTitle = 'Artemis Network'
 export const artemisNetworkPluginPath = '/artemis-network'
 export const artemisJMXPluginName = 'artemisJMX'
 export const artemisJMXPluginTitle = 'Artemis JMX'
-export const artemisJMXPluginPath = '/treeartemisJMX'
+export const artemisJMXPluginPath = '/artemis-jmx'
 export const artemisHeaderPluginName = 'artemisHeader'
 
 export const domainNodeType = 'Camel Domain'
@@ -32,6 +32,10 @@ export const contextsType = 'contexts'
 export const contextNodeType = 'context'
 
 export const endpointNodeType = 'endpointNode'
+
+export const storageKeyFilters = 'artemis.globalFilters'
+
+export const PARAM_KEY_NODE_ID = 'nid'
 
 if (localStorage) {
   if (!localStorage.getItem('core.logging.logLevel')) {

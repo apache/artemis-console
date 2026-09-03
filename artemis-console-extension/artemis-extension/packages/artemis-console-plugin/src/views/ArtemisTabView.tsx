@@ -15,121 +15,173 @@
  * limitations under the License.
  */
 import React, { useEffect, useState } from 'react'
-import { Tabs, Tab, TabTitleText, Stack, PageSection, TabContent } from '@patternfly/react-core';
-import { ProducerTable } from '../producers/ProducerTable';
-import { ConsumerTable } from '../consumers/ConsumerTable';
-import { ConnectionsTable } from '../connections/ConnectionsTable';
-import { SessionsTable } from '../sessions/SessionsTable';
-import { AddressesTable } from '../addresses/AddressesTable';
-import { ArtemisContext, useArtemisTree } from '../context';
-import { Status } from '../status/Status';
-import { Filter } from '../table/ArtemisTable';
-import { QueuesView } from '../queues/QueuesView';
-import { BrokerDiagram } from '../brokers/BrokerDiagram';
-import { artemisService } from '../artemis-service';
+import { PageSection, Nav, NavItem, NavList, Button } from '@patternfly/react-core'
+import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router'
 
+import { artemisPluginPath, storageKeyFilters } from '../globals'
+import { ArtemisContext, useArtemisTree } from '../context'
+import { artemisService } from '../artemis-service'
+import { type ArtemisTabId, EMPTY_TABLE_FILTERS, type Filter, RemoveFilterScope, TableFilters } from '../table/types'
 
-export type Broker = {
-  columnStorageLocation?: string
+import { Status } from '../status/Status'
+import { ConnectionsTable } from '../connections/ConnectionsTable'
+import { SessionsTable } from '../sessions/SessionsTable'
+import { ProducerTable } from '../producers/ProducerTable'
+import { ConsumerTable } from '../consumers/ConsumerTable'
+import { AddressesTable } from '../addresses/AddressesTable'
+import { QueuesView } from '../queues/QueuesView'
+import { BrokerDiagram } from '../brokers/BrokerDiagram'
+
+/**
+ * Representation of one tab of `<ArtemisTabs>` component
+ */
+type TabDefinition = {
+  /** One of the supported tab identifiers, reflected in browser URL and allowing cross-tab navigation */
+  id: ArtemisTabId
+  /** Title for the tab */
+  title: string
+  /** React component to be displayed after navigating (using React Router) to the tab */
+  component: React.ReactNode,
+  /** Whether the component of a tab uses inner `<Routes>` */
+  hasSubTabs?: boolean
 }
 
-export type Navigate = {
-  search: Function
-  filter?: Filter
+function persistFilters(filters: TableFilters) {
+  localStorage.setItem(storageKeyFilters, JSON.stringify(filters))
 }
 
 export const ArtemisTabs: React.FunctionComponent = () => {
 
-  const { tree, selectedNode, brokerNode, setSelectedNode, findAndSelectNode } = useArtemisTree();
-  const [activeTabKey, setActiveTabKey] = useState<string | number>(0);
-  const[searchFilter, setSearchFilter] = useState<Filter | undefined>();
+  const { tree, loaded, selectedNode, jmxDomain, brokerNode, setSelectedNode, findAndSelectNode } = useArtemisTree()
 
+  // global search filters provided down to individual tabs. Full filter is an array of individual
+  // <field><operation><value> tuples, where each tuple is valid only for a single tab.
+  const [searchFilters, setSearchFilters] = useState<TableFilters>(() => {
+    const data = localStorage.getItem(storageKeyFilters)
+    if (data) {
+      try {
+        const json = JSON.parse(data)
+        if ('searchFilters' in json) {
+          return json as TableFilters
+        }
+      } catch (error) {
+        console.error('Can\'t parse JSON filter data from local storage', error)
+      }
+    }
+    return EMPTY_TABLE_FILTERS
+  })
 
-  const handleTabClick = (event: React.MouseEvent<any> | React.KeyboardEvent | MouseEvent, tabIndex: string | number
-  ) => {
-    setSearchFilter(undefined);
-    setActiveTabKey(tabIndex);
-  };
+  const { pathname, search } = useLocation()
+  const navigate = useNavigate()
 
-  const handleSearch = (tab: number, filter: Filter) => {
-      setSearchFilter(filter);
-      setActiveTabKey(tab);
-  };
+  /**
+   * Cross-table navigation between Artemis tabs. Cells in one tab/table (for example sessions) may be links to
+   * another tab/table (like connections). This method allows to perform "navigation with immediate" filtering, where
+   * the filtering criteria is defined by the link in the cell.
+   *
+   * @param tab
+   * @param filter
+   */
+  const switchTab = (tab: ArtemisTabId, filter?: Filter) => {
+    if (filter) {
+      setSearchFilters(filters => {
+        const newFilters: TableFilters = { ...filters }
+        if (filter) {
+          newFilters.searchFilters = filters.searchFilters.filter(f => f.tab !== tab)
+          newFilters.searchFilters.push(filter)
+        }
+        return newFilters
+      })
+    }
+    navigate({ pathname: `${artemisPluginPath}/${tab}`, search })
+  }
+
+  /**
+   * Function passed to individual tables which display filtering UI. When a filter is added, this function
+   * updates global set of filters.
+   * @param filter
+   * @param remove
+   */
+  const filterApplied = (filter: Filter, remove?: RemoveFilterScope) => {
+    setSearchFilters(filters => {
+      let filterArray: Filter[]
+      if (remove) {
+        if (remove === RemoveFilterScope.ALL) {
+          // remove all for given tab
+          filterArray = filters.searchFilters.filter(f => !(f.tab === filter.tab))
+        } else /*if (remove === RemoveFilterScope.SINGLE)*/ {
+          // leave all that don't match the passed filter tuple
+          filterArray = filters.searchFilters.filter(f => !(f.tab === filter.tab && f.column == filter.column && f.operation === filter.operation && f.input === filter.input))
+        }
+      } else {
+        // add, but only if there's no such already
+        const found = filters.searchFilters.find(f => (f.tab === filter.tab && f.column == filter.column && f.operation === filter.operation && f.input === filter.input))
+        if (found) {
+          // no change at all, so don't propagate state change
+          return filters
+        }
+        filterArray = [...filters.searchFilters, filter]
+      }
+      return { ...filters, searchFilters: filterArray }
+    })
+  }
 
   useEffect(() => {
+    // synchronize with "external storage"
+    persistFilters(searchFilters)
+  }, [searchFilters])
 
-  }, [searchFilter, activeTabKey])
+  // <Status> is the only component that is not guarded by permissions
+  const tabs: TabDefinition[] = [
+    { id: 'status', title: 'Status', component: <Status /> },
+  ]
+  if (artemisService.canListConnections(brokerNode)) {
+    tabs.push({ id: 'connections', title: 'Connections', component: <ConnectionsTable switchTab={switchTab} filters={searchFilters} editGlobalFilter={filterApplied} /> })
+  }
+  if (artemisService.canListSessions(brokerNode)) {
+    tabs.push({ id: 'sessions', title: 'Sessions', component: <SessionsTable switchTab={switchTab} filters={searchFilters} editGlobalFilter={filterApplied} /> })
+  }
+  if (artemisService.canListProducers(brokerNode)) {
+    tabs.push({ id: 'producers', title: 'Producers', component: <ProducerTable switchTab={switchTab} filters={searchFilters} editGlobalFilter={filterApplied} /> })
+  }
+  if (artemisService.canListConsumers(brokerNode)) {
+    tabs.push({ id: 'consumers', title: 'Consumers', component: <ConsumerTable switchTab={switchTab} filters={searchFilters} editGlobalFilter={filterApplied} /> })
+  }
+  if (artemisService.canListAddresses(brokerNode)) {
+    tabs.push({ id: 'addresses', title: 'Addresses', component: <AddressesTable switchTab={switchTab} filters={searchFilters} editGlobalFilter={filterApplied} /> })
+  }
+  if (artemisService.canListQueues(brokerNode)) {
+    tabs.push({ id: 'queues', hasSubTabs: true, title: 'Queues', component: <QueuesView switchTab={switchTab} filters={searchFilters} editGlobalFilter={filterApplied} /> })
+  }
+  if (artemisService.canListNetworkTopology(brokerNode)) {
+    tabs.push({ id: 'broker-diagram', title: 'Broker Diagram', component: <BrokerDiagram /> })
+  }
 
-  // The BrokerTopology needs to be in it's own Page Section outside of the Tabs, it wont resize the tab content otherwise
   return (
-    <ArtemisContext.Provider value={{ tree, selectedNode, brokerNode, setSelectedNode, findAndSelectNode }}>
-        <Stack>
-          <PageSection type="tabs">
-            <Tabs activeKey={activeTabKey}
-              onSelect={handleTabClick}
-              aria-label="artemistabs">
-              <Tab eventKey={0} title={<TabTitleText>Status</TabTitleText>} aria-label="status">
-                {activeTabKey === 0 &&
-                  <Status/>
-                }
-              </Tab>
-              { artemisService.canListConnections(brokerNode) &&
-              <Tab eventKey={1} title={<TabTitleText>Connections</TabTitleText>} aria-label="connections">
-                {activeTabKey === 1 &&
-                  <ConnectionsTable search={handleSearch} filter={searchFilter}/>
-                }
-              </Tab>
+    <ArtemisContext.Provider value={{ tree, loaded, selectedNode, jmxDomain, brokerNode, setSelectedNode, findAndSelectNode }}>
+      <PageSection type='tabs' hasBodyWrapper={false}>
+        <Nav variant='horizontal-subnav' aria-label='Artemis Nav'>
+          <NavList>
+            {tabs.map(({ id, title, hasSubTabs }) => {
+              let isActive = pathname === `${artemisPluginPath}/${id}`
+              if (hasSubTabs) {
+                isActive ||= pathname?.startsWith(`${artemisPluginPath}/${id}/`)
               }
-              { artemisService.canListSessions(brokerNode) &&
-              <Tab eventKey={2} title={<TabTitleText>Sessions</TabTitleText>} aria-label="sessions">
-                {activeTabKey === 2 &&
-                  <SessionsTable search={handleSearch} filter={searchFilter}/>
-                }
-              </Tab>
-              }
-              { artemisService.canListProducers(brokerNode) &&
-              <Tab eventKey={3} title={<TabTitleText>Producers</TabTitleText>} aria-label="producers">
-                {activeTabKey === 3 &&
-                  <ProducerTable search={handleSearch} filter={searchFilter}/>
-                }
-              </Tab>
-              }
-              { artemisService.canListConsumers(brokerNode) &&
-              <Tab eventKey={4} title={<TabTitleText>Consumers</TabTitleText>} aria-label="consumers">
-                {activeTabKey === 4 &&
-                  <ConsumerTable search={handleSearch} filter={searchFilter}/>
-                }
-              </Tab>
-              }
-              { artemisService.canListAddresses(brokerNode) &&
-              <Tab eventKey={5} title={<TabTitleText>Addresses</TabTitleText>} aria-label="addresses">
-                {activeTabKey === 5 &&
-                  <AddressesTable search={handleSearch} filter={searchFilter}/>
-                }
-              </Tab>
-              }
-              { artemisService.canListQueues(brokerNode) &&
-              <Tab eventKey={6} title={<TabTitleText>Queues</TabTitleText>} aria-label="queues">
-                {activeTabKey === 6 &&
-                  <QueuesView search={handleSearch} filter={searchFilter}/>
-                }
-              </Tab>
-              }
-              { artemisService.canListNetworkTopology(brokerNode) &&
-              <Tab eventKey={7} title={<TabTitleText>Broker Diagram</TabTitleText>} aria-label="broker-diagram">
-              </Tab>
-              }
-          </Tabs>
-        </PageSection>
-        <PageSection padding={{ default: 'noPadding' }}>
-            <TabContent key={7} eventKey={7} id={`tabContent${7}`} activeKey={activeTabKey} hidden={7 !== activeTabKey}  style={{height: "100%"}}>
-            {activeTabKey === 7 && 
-              <BrokerDiagram />   
-            }
-            </TabContent>
-        </PageSection>
-      </Stack>
+              return (<NavItem key={id} onClick={() => { switchTab(id, undefined) }} isActive={isActive}>
+                <Button>{title}</Button>
+              </NavItem>)
+            })}
+          </NavList>
+        </Nav>
+      </PageSection>
+      <PageSection hasBodyWrapper={false} isFilled hasOverflowScroll aria-label='Artemis Tabs Content'>
+        <Routes>
+          {tabs.map(({ id, component, hasSubTabs }) => (
+              <Route key={id} path={hasSubTabs ? `${id}/*` : id} element={component} />
+          ))}
+          <Route path='' element={<Navigate to={{ pathname: tabs[0].id, search }} replace={true} />} />
+        </Routes>
+      </PageSection>
     </ArtemisContext.Provider>
   )
-
 }

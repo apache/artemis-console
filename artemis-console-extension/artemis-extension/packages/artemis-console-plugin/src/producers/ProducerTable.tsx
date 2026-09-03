@@ -14,57 +14,84 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React, { } from 'react'
-import { Navigate } from '../views/ArtemisTabView.js';
-import { ActiveSort, ArtemisTable, Column, Filter } from '../table/ArtemisTable';
-import { artemisService } from '../artemis-service';
-import { columnStorage } from '../artemis-preferences-service';
-import { eventService, jolokiaService } from '@hawtio/react'
+import React, { useCallback } from 'react'
+import {
+  Label,
+  LabelStatus
+} from '@patternfly/react-core'
+import { RhUiInfrastructureIcon } from '@patternfly/react-icons/dist/esm/icons/rh-ui-infrastructure-icon'
 
-export const ProducerTable: React.FunctionComponent<Navigate> = navigate => {
-  const getSessionFilter = (row: any) => {
-    const filter: Filter = {
-      column: 'id',
-      operation: 'EQUALS',
-      input: row.session
-    }
-    return filter;
+import { artemisService } from '../artemis-service'
+import { columnStorage } from '../artemis-preferences-service'
+import {
+  type ActiveSort,
+  ColumnType,
+  type Filter,
+  SortDirection,
+  type TableColumn,
+  type TableRow,
+  type TableRowsData
+} from '../table/types'
+import { loadFilteredData } from '../table/utils'
+import { ArtemisTable, type ArtemisTableFilterProps } from '../table/ArtemisTable'
+
+// a filter for navigation to producer's session
+const getSessionFilter: (row: TableRow) => Filter = row => {
+  return {
+    tab: 'sessions',
+    column: 'id',
+    operation: 'EQUALS',
+    input: row.session
   }
+}
 
-  const getAddressFilter = (row: any) => {
-    const filter: Filter = {
-      column: 'name',
-      operation: 'EQUALS',
-      input: row.address
-    }
-    return filter;
+// a filter for navigation to producer's address
+const getAddressFilter: (row: TableRow) => Filter = row => {
+  return {
+    tab: 'addresses',
+    column: 'name',
+    operation: 'EQUALS',
+    input: row.address
   }
+}
 
-    const allColumns: Column[] = [
-        {id: 'id', name: 'ID', visible: false, sortable: true, filterable: true},
-        {id: 'name', name: 'Name', visible: true, sortable: true, filterable: true},
-        {id: 'session', name: 'Session', visible: true, sortable: true, filterable: true, filter: getSessionFilter, filterTab: 2},
-        {id: 'clientID', name: 'Client ID', visible: true, sortable: true, filterable: true},
-        {id: 'user', name: 'User', visible: true, sortable: true, filterable: true},
-        {id: 'address', name: 'Address', visible: true, sortable: true, filterable: true, filter: getAddressFilter, filterTab: 5},
-        {id: 'validatedUser', name: 'Validated User', visible: true, sortable: true, filterable: true},
-        {id: 'protocol', name: 'Protocol', visible: true, sortable: true, filterable: true},
-        {id: 'localAddress', name: 'Local Address', visible: true, sortable: true, filterable: true},
-        {id: 'remoteAddress', name: 'Remote Address', visible: true, sortable: true, filterable: true},
-        {id: 'msgSent', name: 'Messages Sent', visible: false, sortable: true, filterable: false},
-        {id: 'msgSizeSent', name: 'Messages Sent Size', visible: false, sortable: true, filterable: false},
-        {id: 'lastProducedMessageID', name: 'Last Produced Message ID', visible: false, sortable: true, filterable: false},
-        {id: 'creationTime', name: 'Creation Time', visible: true, sortable: true, filterable: false},
-      ];
+// see org.apache.activemq.artemis.core.management.impl.view.ProducerView
+const allColumns: TableColumn[] = [
+  // Long.toString()
+  { id: 'id', type: ColumnType.NUMBER, name: 'ID', visible: false, sortable: true, filterable: true },
+  { id: 'name', type: ColumnType.STRING, name: 'Name', visible: true, sortable: true, filterable: true },
+  { id: 'session', type: ColumnType.STRING, name: 'Session', visible: true, sortable: true, filterable: true, filter: getSessionFilter },
+  { id: 'clientID', type: ColumnType.STRING, name: 'Client ID', visible: true, sortable: true, filterable: true },
+  { id: 'user', type: ColumnType.STRING, name: 'User', visible: true, sortable: true, filterable: true },
+  { id: 'address', type: ColumnType.STRING, name: 'Address', visible: true, sortable: true, filterable: true, filter: getAddressFilter },
+  { id: 'validatedUser', type: ColumnType.STRING, name: 'Validated User', visible: true, sortable: true, filterable: true },
+  { id: 'protocol', type: ColumnType.STRING, name: 'Protocol', visible: true, sortable: true, filterable: true, component: (v) => (<Label icon={<RhUiInfrastructureIcon />} status={LabelStatus.info}>{v}</Label>) },
+  { id: 'localAddress', type: ColumnType.STRING, name: 'Local Address', visible: true, sortable: true, filterable: true },
+  { id: 'remoteAddress', type: ColumnType.STRING, name: 'Remote Address', visible: true, sortable: true, filterable: true },
+  { id: 'msgSent', type: ColumnType.NUMBER, name: 'Messages Sent', visible: false, sortable: true, filterable: false },
+  { id: 'msgSizeSent', type: ColumnType.NUMBER, name: 'Messages Sent Size', visible: false, sortable: true, filterable: false },
+  { id: 'lastProducedMessageID', type: ColumnType.STRING, name: 'Last Produced Message ID', visible: false, sortable: true, filterable: false },
+  // actually a string value of the timestamp
+  { id: 'creationTime', type: ColumnType.NUMBER, name: 'Creation Time', visible: true, sortable: true, filterable: false }
+]
 
-      const listProducers = async ( page: number, perPage: number, activeSort: ActiveSort, filter: Filter):Promise<any> => {
-        const response = await artemisService.getProducers(page, perPage, activeSort, filter).catch(error => {
-          eventService.notify({ type: 'warning', message: jolokiaService.errorMessage(error)})
-          return JSON.stringify({data: [], count: 0})
-        })
-        const data = JSON.parse(response);
-        return data;
-      }
+const initialFilter: Filter = { tab: 'producers', column: allColumns[1].id, operation: 'CONTAINS', input: '' }
+const initialSort: ActiveSort = { column: allColumns[1].id, order: SortDirection.ASCENDING }
 
-    return <ArtemisTable allColumns={allColumns} getData={listProducers} storageColumnLocation={columnStorage.producers} navigate={navigate.search} filter={navigate.filter}/>
+export const ProducerTable: React.FunctionComponent<ArtemisTableFilterProps> = props => {
+
+  const listProducers = useCallback(async (page: number, perPage: number, sort: ActiveSort | undefined, filters: Filter[]): Promise<TableRowsData> => {
+    return loadFilteredData('producers', artemisService.getProducers.bind(artemisService), page, perPage, sort, filters)
+  }, [])
+
+  return (
+    <ArtemisTable allColumns={allColumns}
+                  initialFilter={initialFilter}
+                  initialSort={initialSort}
+                  getData={listProducers}
+                  storageColumnLocation={columnStorage.producers}
+                  switchTab={props.switchTab}
+                  filters={props.filters}
+                  editGlobalFilter={props.editGlobalFilter} />
+  )
 }

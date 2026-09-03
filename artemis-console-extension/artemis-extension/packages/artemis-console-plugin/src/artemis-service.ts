@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { ActiveSort, Filter } from './table/ArtemisTable'
+import { ActiveSort, type Filter, type FilterOperation } from './table/types'
 import { eventService, jolokiaService, MBeanNode, parseMBeanName, workspace } from '@hawtio/react'
 import { createAddressObjectName, createQueueObjectName } from './util/jmx'
 import { log } from './globals'
@@ -155,6 +155,38 @@ export type queuePermissions = {
   canDelete: boolean;
 }
 
+/**
+ * Filtering information for a single field passed for data loading.
+ * See `org.apache.activemq.artemis.core.management.impl.view.ActiveMQAbstractView#createFilterPredicates`
+ */
+export type SingleFilterOptions = {
+  field: string
+  operation: FilterOperation
+  value?: string
+}
+
+/**
+ * Sorting options passed for data loading.
+ */
+export type SortingOptions = {
+  /** org.apache.activemq.artemis.core.management.impl.view.ActiveMQAbstractView#SORT_FIELD */
+  sortField?: string
+  /** org.apache.activemq.artemis.core.management.impl.view.ActiveMQAbstractView#SORT_ORDER */
+  sortOrder?: string
+}
+
+/**
+ * Filtering + sorting information passed as `options` to
+ * `org.apache.activemq.artemis.core.management.impl.view.ActiveMQAbstractView#setOptions` parsed as JSON. It may
+ * contain one filter or an array of simple `<field><operation><value>` elements
+ *
+ * At the server-side defaults to `{field:'',operation:'',value:''}`
+ */
+export type FilterOptions = Partial<SingleFilterOptions> & SortingOptions & {
+  /** See `org.apache.activemq.artemis.core.management.impl.view.ActiveMQAbstractView#FILTER_ARRAY_FIELD` */
+  searchFilters?: SingleFilterOptions[]
+}
+
 const LIST_NETWORK_TOPOLOGY_SIG = "listNetworkTopology";
 const SEND_MESSAGE_SIG = "sendMessage(java.util.Map,int,java.lang.String,boolean,java.lang.String,java.lang.String,boolean)";
 const DELETE_ADDRESS_SIG = "deleteAddress(java.lang.String)";
@@ -167,13 +199,17 @@ const CREATE_ADDRESS_SIG = "createAddress(java.lang.String,java.lang.String)"
 const COUNT_MESSAGES_SIG = "countMessages()";
 const COUNT_MESSAGES_SIG2 = "countMessages(java.lang.String)";
 const BROWSE_SIG = "browse(int,int,java.lang.String)";
-const LIST_PRODUCERS_SIG = "listProducers(java.lang.String,int,int)";
+
+/* Signatures of JMX methods on the broker MBean to fill main tabs of <ArtemisTabs> */
+
 const LIST_CONNECTIONS_SIG = "listConnections(java.lang.String,int,int)";
 const LIST_SESSIONS_SIG = "listSessions(java.lang.String,int,int)";
+const LIST_PRODUCERS_SIG = "listProducers(java.lang.String,int,int)";
 const LIST_CONSUMERS_SIG = "listConsumers(java.lang.String,int,int)";
 const LIST_ADDRESSES_SIG = "listAddresses(java.lang.String,int,int)";
-const LIST_ALL_ADDRESSES_SIG = "listAddresses(java.lang.String)";
 const LIST_QUEUES_SIG = "listQueues(java.lang.String,int,int)";
+
+const LIST_ALL_ADDRESSES_SIG = "listAddresses(java.lang.String)";
 const DESTROY_QUEUE_SIG = "destroyQueue(java.lang.String)";
 const REMOVE_ALL_MESSAGES_SIG = "removeAllMessages()";
 const CLOSE_CONNECTION_SIG = "closeConnectionWithID(java.lang.String)";
@@ -273,7 +309,7 @@ class ArtemisService {
 
             const response = await jolokiaService.readSpecifiedAttributes(brokerObjectName, jolokiaAttributes).catch(e => {
                 // this is the best (as of Nov 2025) way to handle problems when fetching attributes with RBAC enabled
-                eventService.notify({type: 'warning', message: jolokiaService.errorMessage(e) })
+                eventService.notify({ type: 'warning', message: jolokiaService.errorMessage(e) })
                 return null
             });
             if (response) {
@@ -303,7 +339,7 @@ class ArtemisService {
                 const connectionCount = response.ConnectionCount as number;
                 const replicaSync = response.ReplicaSync as boolean | InaccessibleValue;
                 const topology = await jolokiaService.execute(brokerObjectName, LIST_NETWORK_TOPOLOGY_SIG).catch(e => {
-                    eventService.notify({type: 'warning', message: jolokiaService.errorMessage(e) })
+                    eventService.notify({ type: 'warning', message: jolokiaService.errorMessage(e) })
                     return "{}"
                 }) as string;
                 const brokerInfo: BrokerInfo = {
@@ -541,59 +577,69 @@ class ArtemisService {
         };
     }
 
-    async getProducers(page: number, perPage: number, activeSort: ActiveSort, filter: Filter): Promise<string> {
-        const producerFilter = {
-            field: filter.input !== '' ? filter.column : '',
-            operation: filter.input !== '' ? filter.operation : '',
-            value: filter.input,
-            sortOrder: activeSort.order,
-            sortColumn: activeSort.id
-        };
-        return await jolokiaService.execute(await this.getBrokerObjectName(), LIST_PRODUCERS_SIG, [JSON.stringify(producerFilter), page, perPage]) as string;
+    // ---- Methods that call Jolokia to get a filtered/sorted/paged data from the Broker using dedicated JMX methods
+    //      all the methods use jolokiaService.execute which returns a Promise. The signatures for the MBean operations
+    //      at the broker side use String as the return type, so the value is a String representation of JSON object
+
+    private singleFilter(f: Filter) {
+        return {
+            field: f.column,
+            operation: f.operation,
+            value: f.input ? `${f.input}` : ''
+        }
     }
 
-    async getConsumers(page: number, perPage: number, activeSort: ActiveSort, filter: Filter): Promise<string> {
-        const consumerFilter = {
-            field: filter.input !== '' ? filter.column : '',
-            operation: filter.input !== '' ? filter.operation : '',
-            value: filter.input,
-            sortOrder: activeSort.order,
-            sortColumn: activeSort.id
-        };
-        return await jolokiaService.execute(await this.getBrokerObjectName(), LIST_CONSUMERS_SIG, [JSON.stringify(consumerFilter), page, perPage]) as string;
+    private filterParameter(filter: Filter | Filter[], sort?: ActiveSort): string {
+        let connectionsFilter: FilterOptions = {}
+        if (sort && sort.column && sort.order) {
+            // "sortColumn" is deprecated in ARTEMIS-5071, use "sortField"
+            connectionsFilter.sortField = sort.column
+            connectionsFilter.sortOrder = sort.order
+        }
+        if (Array.isArray(filter) && filter.length > 1) {
+            // actual multi filter
+            connectionsFilter.searchFilters = filter.filter(f => f.column).map(f => this.singleFilter(f))
+        } else {
+            // a single filter
+            const f = Array.isArray(filter) ? filter[0] || undefined : filter
+            if (f && f.column && f.operation) {
+                Object.assign(connectionsFilter, this.singleFilter(f))
+            } else {
+                // no filters, pass empty array instead of "field CONTAINS ''"
+                connectionsFilter.searchFilters = []
+            }
+        }
+        return JSON.stringify(connectionsFilter)
     }
 
-    async getConnections(page: number, perPage: number, activeSort: ActiveSort, filter: Filter): Promise<string> {
-        const connectionsFilter = {
-            field: filter.input !== '' ? filter.column : '',
-            operation: filter.input !== '' ? filter.operation : '',
-            value: filter.input,
-            sortOrder: activeSort.order,
-            sortColumn: activeSort.id
-        };
-        return await jolokiaService.execute(await this.getBrokerObjectName(), LIST_CONNECTIONS_SIG, [JSON.stringify(connectionsFilter), page, perPage]) as string;
+    async getConnections(page: number, perPage: number, sort: ActiveSort | undefined, filter: Filter | Filter[]): Promise<string> {
+        const filtering = this.filterParameter(filter, sort)
+        return jolokiaService.execute(await this.getBrokerObjectName(), LIST_CONNECTIONS_SIG, [filtering, page, perPage]) as Promise<string>
     }
 
-    async getSessions(page: number, perPage: number, activeSort: ActiveSort, filter: Filter): Promise<string> {
-        const sessionsFilter = {
-            field: filter.input !== '' ? filter.column : '',
-            operation: filter.input !== '' ? filter.operation : '',
-            value: filter.input,
-            sortOrder: activeSort.order,
-            sortColumn: activeSort.id
-        };
-        return await jolokiaService.execute(await this.getBrokerObjectName(), LIST_SESSIONS_SIG, [JSON.stringify(sessionsFilter), page, perPage]) as string;
+    async getSessions(page: number, perPage: number, sort: ActiveSort | undefined, filter: Filter | Filter[]): Promise<string> {
+        const filtering = this.filterParameter(filter, sort)
+        return await jolokiaService.execute(await this.getBrokerObjectName(), LIST_SESSIONS_SIG, [filtering, page, perPage]) as string;
     }
 
-    async getAddresses(page: number, perPage: number, activeSort: ActiveSort, filter: Filter): Promise<string> {
-        const addressesFilter = {
-            field: filter.input !== '' ? filter.column : '',
-            operation: filter.input !== '' ? filter.operation : '',
-            value: filter.input,
-            sortOrder: activeSort.order,
-            sortColumn: activeSort.id
-        };
-        return await jolokiaService.execute(await this.getBrokerObjectName(), LIST_ADDRESSES_SIG, [JSON.stringify(addressesFilter), page, perPage]) as string;
+    async getProducers(page: number, perPage: number, sort: ActiveSort | undefined, filter: Filter | Filter[]): Promise<string> {
+        const filtering = this.filterParameter(filter, sort)
+        return await jolokiaService.execute(await this.getBrokerObjectName(), LIST_PRODUCERS_SIG, [filtering, page, perPage]) as string;
+    }
+
+    async getConsumers(page: number, perPage: number, sort: ActiveSort | undefined, filter: Filter | Filter[]): Promise<string> {
+        const filtering = this.filterParameter(filter, sort)
+        return await jolokiaService.execute(await this.getBrokerObjectName(), LIST_CONSUMERS_SIG, [filtering, page, perPage]) as string;
+    }
+
+    async getAddresses(page: number, perPage: number, sort: ActiveSort | undefined, filter: Filter | Filter[]): Promise<string> {
+        const filtering = this.filterParameter(filter, sort)
+        return await jolokiaService.execute(await this.getBrokerObjectName(), LIST_ADDRESSES_SIG, [filtering, page, perPage]) as string;
+    }
+
+    async getQueues(page: number, perPage: number, sort: ActiveSort | undefined, filter: Filter | Filter[]): Promise<string> {
+        const filtering = this.filterParameter(filter, sort)
+        return await jolokiaService.execute(await this.getBrokerObjectName(), LIST_QUEUES_SIG, [filtering, page, perPage]) as string;
     }
 
     async getAllAddresses(addressFilter: string): Promise<string[]> {     
@@ -613,17 +659,6 @@ class ArtemisService {
             }
             reject("invalid response:" + addressesString);
         });
-    }
-
-    async getQueues(page: number, perPage: number, activeSort: ActiveSort, filter: Filter): Promise<string> {
-        const queuesFilter = {
-            field: filter.input !== '' ? filter.column : '',
-            operation: filter.input !== '' ? filter.operation : '',
-            value: filter.input,
-            sortOrder: activeSort.order,
-            sortColumn: activeSort.id
-        };
-        return await jolokiaService.execute(await this.getBrokerObjectName(), LIST_QUEUES_SIG, [JSON.stringify(queuesFilter), page, perPage]) as string;
     }
 
     async getQueuesForAddress(address: string): Promise<string> {

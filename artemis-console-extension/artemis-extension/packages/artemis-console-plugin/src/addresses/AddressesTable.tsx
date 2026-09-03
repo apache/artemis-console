@@ -14,273 +14,310 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React, { useContext, useState } from 'react'
-import { ActiveSort, ArtemisTable, Column, Filter, ToolbarAction } from '../table/ArtemisTable';
-import { Navigate } from '../views/ArtemisTabView.js';
-import { artemisService } from '../artemis-service';
-import { IAction } from '@patternfly/react-table';
-import { ExclamationCircleIcon } from '@patternfly/react-icons/dist/esm/icons/exclamation-circle-icon';
-import { Button, Icon, Modal, ModalVariant, TextContent, Text } from '@patternfly/react-core';
-import { CreateQueue } from '../queues/CreateQueue';
-import { Attributes, eventService, jolokiaService, Operations, workspace } from '@hawtio/react';
-import { ArtemisContext } from '../context';
-import { CreateAddress } from './CreateAddress';
-import { SendMessage } from '../messages/SendMessage';
-import { createAddressObjectName } from '../util/jmx';
-import { useNavigate } from 'react-router-dom';
-import { columnStorage } from '../artemis-preferences-service';
+import React, { useCallback, useContext, useState } from 'react'
+import {
+  Button, Content, ContentVariants,
+  Modal,
+  ModalBody,
+  ModalFooter,
+  ModalHeader,
+  ModalVariant,
+  PageSection,
+  Title,
+} from '@patternfly/react-core'
+import { type IAction } from '@patternfly/react-table'
+import { PlusIcon } from '@patternfly/react-icons/dist/esm/icons/plus-icon'
+import { Remove2Icon } from '@patternfly/react-icons/dist/esm/icons/remove2-icon'
+import { useNavigate } from 'react-router'
 
-export const AddressesTable: React.FunctionComponent<Navigate> = (navigate) => {
-  const getQueueFilter = (row: any) => {
-    const filter: Filter = {
-      column: 'address',
-      operation: 'EQUALS',
-      input: row.name
-    }
-    return filter;
+import { Attributes, eventService, jolokiaService, Operations, workspace } from '@hawtio/react'
+
+import { artemisService } from '../artemis-service'
+import { columnStorage } from '../artemis-preferences-service'
+import { artemisJMXPluginPath } from '../globals'
+import { ArtemisContext } from '../context'
+import { createAddressObjectName } from '../util/jmx'
+import {
+  type ActiveSort,
+  ColumnType,
+  type Filter,
+  SortDirection,
+  type TableColumn,
+  type TableRow,
+  type TableRowsData
+} from '../table/types'
+import { closeWithEscape, loadFilteredData } from '../table/utils'
+import { ArtemisTable, type ArtemisTableFilterProps, ToolbarAction } from '../table/ArtemisTable'
+import { CreateAddress } from './CreateAddress'
+import { CreateQueue } from '../queues/CreateQueue'
+import { SendMessage } from '../messages/SendMessage'
+
+// a filter for navigation to address' queue(s)
+const getQueueFilter: (row: TableRow) => Filter = row => {
+  return {
+    tab: 'queues',
+    column: 'address',
+    operation: 'EQUALS',
+    input: row.name
   }
-  const allColumns: Column[] = [
-    { id: 'id', name: 'ID', visible: false, sortable: true, filterable: true },
-    { id: 'name', name: 'Name', visible: true, sortable: true, filterable: true },
-    { id: 'routingTypes', name: 'Routing Types', visible: true, sortable: true, filterable: true },
-    { id: 'queueCount', name: 'Queue Count', visible: true, sortable: true, filterable: true, filter: getQueueFilter, filterTab: 6 },
-    { id: 'internal', name: 'Internal', visible: false, sortable: true, filterable: true },
-    { id: 'temporary', name: 'Temporary', visible: false, sortable: true, filterable: true },
-    { id: 'autoCreated', name: 'Auto Created', visible: false, sortable: true, filterable: true },
-    { id: 'paused', name: 'Paused', visible: false, sortable: true, filterable: true },
-    { id: 'currentDuplicateIdCacheSize', name: 'Current Duplicate ID Cache Size', visible: false, sortable: true, filterable: true },
-    { id: 'retroactiveResource', name: 'Retroactive Resource', visible: false, sortable: true, filterable: true },
-    { id: 'unroutedMessageCount', name: 'Unrouted Message Count', visible: false, sortable: true, filterable: true },
-    { id: 'routedMessageCount', name: 'Routed Message Count', visible: false, sortable: true, filterable: true },
-    { id: 'messageCount', name: 'Message Count', visible: true, sortable: true, filterable: true },
-    { id: 'numberOfBytesPerPage', name: 'Number Of Bytes Per Page', visible: false, sortable: true, filterable: true },
-    { id: 'addressLimitPercent', name: 'Address Limit Percent', visible: true, sortable: true, filterable: true },
-    { id: 'paging', name: 'Paging', visible: true, sortable: true, filterable: true },
-    { id: 'numberOfPages', name: 'Number Of Pages', visible: false, sortable: true, filterable: true },
-    { id: 'addressSize', name: 'Address Size', visible: true, sortable: true, filterable: true },
-    { id: 'maxPageReadBytes', name: 'Max Page Read Bytes', visible: false, sortable: true, filterable: true },
-    { id: 'maxPageReadMessages', name: 'Max Page Read Messages', visible: false, sortable: true, filterable: true },
-    { id: 'prefetchPageBytes', name: 'Prefetch Page Bytes', visible: false, sortable: true, filterable: true },
-    { id: 'prefetchPageMessages', name: 'Prefetch Page Messages', visible: false, sortable: true, filterable: true }
-  ];
+}
 
-  const listAddresses = async (page: number, perPage: number, activeSort: ActiveSort, filter: Filter): Promise<any> => {
-    const response = await artemisService.getAddresses(page, perPage, activeSort, filter).catch(error => {
-      eventService.notify({ type: 'warning', message: jolokiaService.errorMessage(error)})
-      return JSON.stringify({ data: [], count: 0 })
-    })
-    const data = JSON.parse(response);
-    return data;
-  }
+// see org.apache.activemq.artemis.core.management.impl.view.AddressView
+const allColumns: TableColumn[] = [
+  { id: 'id', type: ColumnType.NUMBER, name: 'ID', visible: false, sortable: true, filterable: true },
+  { id: 'name', type: ColumnType.STRING, name: 'Name', visible: true, sortable: true, filterable: true },
+  // actually it's JSON - array of strings
+  { id: 'routingTypes', type: ColumnType.STRING, name: 'Routing Types', visible: true, sortable: true, filterable: true },
+  // Integer.toString()
+  { id: 'queueCount', type: ColumnType.NUMBER, name: 'Queue Count', visible: true, sortable: true, filterable: true, filter: getQueueFilter },
+  // 4x Boolean.toString()
+  { id: 'internal', type: ColumnType.BOOLEAN, name: 'Internal', visible: false, sortable: true, filterable: true },
+  { id: 'temporary', type: ColumnType.BOOLEAN, name: 'Temporary', visible: false, sortable: true, filterable: true },
+  { id: 'autoCreated', type: ColumnType.BOOLEAN, name: 'Auto Created', visible: false, sortable: true, filterable: true },
+  { id: 'paused', type: ColumnType.BOOLEAN, name: 'Paused', visible: false, sortable: true, filterable: true },
+  // Long.toString()
+  { id: 'currentDuplicateIdCacheSize', type: ColumnType.NUMBER, name: 'Current Duplicate ID Cache Size', visible: false, sortable: true, filterable: true },
+  // Boolean.toString()
+  { id: 'retroactiveResource', type: ColumnType.BOOLEAN, name: 'Retroactive Resource', visible: false, sortable: true, filterable: true },
+  // Long.toString()
+  { id: 'unroutedMessageCount', type: ColumnType.NUMBER, name: 'Unrouted Message Count', visible: false, sortable: true, filterable: true },
+  // Long.toString()
+  { id: 'routedMessageCount', type: ColumnType.NUMBER, name: 'Routed Message Count', visible: false, sortable: true, filterable: true },
+  // Long.toString()
+  { id: 'messageCount', type: ColumnType.NUMBER, name: 'Message Count', visible: true, sortable: true, filterable: true },
+  // Long.toString()
+  { id: 'numberOfBytesPerPage', type: ColumnType.NUMBER, name: 'Number of Bytes per Page', visible: false, sortable: true, filterable: true },
+  // Integer.toString()
+  { id: 'addressLimitPercent', type: ColumnType.NUMBER, name: 'Address Limit Percent', visible: true, sortable: true, filterable: true },
+  // Boolean or "n/a" symbol
+  { id: 'paging', type: ColumnType.STRING, name: 'Paging', visible: true, sortable: true, filterable: true },
+  // Long.toString()
+  { id: 'numberOfPages', type: ColumnType.NUMBER, name: 'Number Of Pages', visible: false, sortable: true, filterable: true },
+  // Long.toString()
+  { id: 'addressSize', type: ColumnType.NUMBER, name: 'Address Size', visible: true, sortable: true, filterable: true },
+  // 4x Integer.toString()
+  { id: 'maxPageReadBytes', type: ColumnType.NUMBER, name: 'Max Page Read Bytes', visible: false, sortable: true, filterable: true },
+  { id: 'maxPageReadMessages', type: ColumnType.NUMBER, name: 'Max Page Read Messages', visible: false, sortable: true, filterable: true },
+  { id: 'prefetchPageBytes', type: ColumnType.NUMBER, name: 'Prefetch Page Bytes', visible: false, sortable: true, filterable: true },
+  { id: 'prefetchPageMessages', type: ColumnType.NUMBER, name: 'Prefetch Page Messages', visible: false, sortable: true, filterable: true }
+]
 
-  const { tree, selectedNode, brokerNode, setSelectedNode, findAndSelectNode } = useContext(ArtemisContext);
-  const routenavigate = useNavigate();
+const initialFilter: Filter = { tab: 'addresses', column: allColumns[1].id, operation: 'CONTAINS', input: '' }
+const initialSort: ActiveSort = { column: allColumns[1].id, order: SortDirection.ASCENDING }
 
+export const AddressesTable: React.FunctionComponent<ArtemisTableFilterProps> = props => {
 
-  const [showCreateDialog, setShowCreateDialog] = useState(false);
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [showAttributesDialog, setShowAttributesDialog] = useState(false);
-  const [showOperationsDialog, setShowOperationsDialog] = useState(false);
-  const [showCreateAddressDialog, setShowCreateAddressDialog] = useState(false);
-  const [showSendDialog, setShowSendDialog] = useState(false);
-  const [address, setAddress] = useState("");
-  const [loadData, setLoadData] = useState(0);
-  const canCreateQueue = artemisService.canCreateQueue(brokerNode);
-  const canDeleteAddress = artemisService.canDeleteAddress(brokerNode);
-  const canCreateAddress = artemisService.canCreateAddress(brokerNode);
+  const { brokerNode, selectedNode, findAndSelectNode } = useContext(ArtemisContext)
+  const routeNavigate = useNavigate()
 
+  const [showCreateDialog, setShowCreateDialog] = useState(false)
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [showAttributesDialog, setShowAttributesDialog] = useState(false)
+  const [showOperationsDialog, setShowOperationsDialog] = useState(false)
+  const [showCreateAddressDialog, setShowCreateAddressDialog] = useState(false)
+  const [showSendDialog, setShowSendDialog] = useState(false)
+  const [address, setAddress] = useState('')
+  const [refreshCount, setRefreshCount] = useState(0)
 
+  const canCreateQueue = artemisService.canCreateQueue(brokerNode)
+  const canDeleteAddress = artemisService.canDeleteAddress(brokerNode)
+  const canCreateAddress = artemisService.canCreateAddress(brokerNode)
+
+  const listAddresses = useCallback(async (page: number, perPage: number, sort: ActiveSort | undefined, filters: Filter[]): Promise<TableRowsData> => {
+    return loadFilteredData('addresses', artemisService.getAddresses.bind(artemisService), page, perPage, sort, filters)
+  }, [])
+
+  // Action to be added next to address table filter
   const createAction: ToolbarAction = {
-    name: "Create Address",
+    name: 'Create Address',
     action: () => {
-      setShowCreateAddressDialog(true);
+      setShowCreateAddressDialog(true)
     }
   }
 
-  const getRowActions = (row: any): IAction[] => {
+  const getRowActions = (row: TableRow): IAction[] => {
     const actions: IAction[] = [
       {
         title: 'Show in Artemis JMX',
         onClick: async () => {
-          setAddress(row.name);
-          const brokerObjectName = await artemisService.getBrokerObjectName();
-          const addressObjectName = createAddressObjectName(brokerObjectName, row.name);
-          findAndSelectNode(addressObjectName, row.name);
-          routenavigate('/treeartemisJMX')
+          setAddress(row.name)
+          const brokerObjectName = await artemisService.getBrokerObjectName()
+          const addressObjectName = createAddressObjectName(brokerObjectName, row.name)
+          findAndSelectNode(addressObjectName, row.name)
+          routeNavigate(artemisJMXPluginPath)
         }
       },
       {
         title: 'Attributes',
         onClick: async () => {
-          setAddress(row.name);
-          const brokerObjectName = await artemisService.getBrokerObjectName();
-          const addressObjectName = createAddressObjectName(brokerObjectName, row.name);
-          findAndSelectNode(addressObjectName, row.name);
-          setShowAttributesDialog(true);
+          setAddress(row.name)
+          const brokerObjectName = await artemisService.getBrokerObjectName()
+          const addressObjectName = createAddressObjectName(brokerObjectName, row.name)
+          findAndSelectNode(addressObjectName, row.name)
+          setShowAttributesDialog(true)
         }
       },
       {
         title: 'Operations',
         onClick: async () => {
-          setAddress(row.name);
-          const brokerObjectName = await artemisService.getBrokerObjectName();
-          const addressObjectName = createAddressObjectName(brokerObjectName, row.name);
-          findAndSelectNode(addressObjectName, row.name);
-          setShowOperationsDialog(true);
+          setAddress(row.name)
+          const brokerObjectName = await artemisService.getBrokerObjectName()
+          const addressObjectName = createAddressObjectName(brokerObjectName, row.name)
+          findAndSelectNode(addressObjectName, row.name)
+          setShowOperationsDialog(true)
         }
       }
-    ];
+    ]
 
-    if (canDeleteAddress) {
-      actions.push(
-        {
-          title: 'Delete Address',
-          onClick: () => {
-            setAddress(row.name);
-            setShowDeleteDialog(true);
-          }
-        }
-      );
+    if (canDeleteAddress || canCreateQueue) {
+      actions.push({ isSeparator: true })
     }
-
-    const canSendMessage = artemisService.canSendMessageToAddress(brokerNode, row.name);
-    if (canSendMessage) {
-      actions.push(
-        {
-          title: 'Send Message',
-          onClick: () => {
-            setAddress(row.name);
-            setShowSendDialog(true);
-          }
+    if (canDeleteAddress) {
+      actions.push({
+        title: (<><Remove2Icon /> Delete Address</>),
+        onClick: () => {
+          setAddress(row.name)
+          setShowDeleteDialog(true)
         }
-      );
+      })
     }
     if (canCreateQueue) {
       actions.push({
-        title: 'Create Queue',
+        title: (<><PlusIcon /> Create Queue</>),
         onClick: () => {
-          setAddress(row.name);
-          setShowCreateDialog(true);
+          setAddress(row.name)
+          setShowCreateDialog(true)
         }
-      });
+      })
     }
-    return actions;
-  };
+
+    const canSendMessage = artemisService.canSendMessageToAddress(brokerNode, row.name)
+    if (canSendMessage) {
+      actions.push({ isSeparator: true })
+      actions.push({
+        title: 'Send Message',
+        onClick: () => {
+          setAddress(row.name)
+          setShowSendDialog(true)
+        }
+      })
+    }
+
+    return actions
+  }
 
   const reload = () => {
-    setLoadData(loadData + 1);
+    setRefreshCount(c => c + 1)
   }
 
   const handleDeleteAddress = () => {
     artemisService.deleteAddress(address)
       .then(() => {
-        setShowDeleteDialog(false);
-        workspace.refreshTree();
-        reload();
+        setShowDeleteDialog(false)
+        workspace.refreshTree()
+        reload()
         eventService.notify({
           type: 'success',
-          message: "Address Successfully Deleted",
+          message: 'Address Successfully Deleted',
         })
       })
       .catch((error) => {
-        setShowDeleteDialog(false);
-        eventService.notify({type: 'warning', message: jolokiaService.errorMessage(error) })
+        setShowDeleteDialog(false)
+        eventService.notify({ type: 'warning', message: jolokiaService.errorMessage(error) })
       })
-  };
+  }
 
   return (
-    <ArtemisContext.Provider value={{ tree, selectedNode, brokerNode, setSelectedNode, findAndSelectNode }}>
-      <ArtemisTable getRowActions={getRowActions} allColumns={allColumns} getData={listAddresses} loadData={loadData} storageColumnLocation={columnStorage.addresses}  toolbarActions={[createAction]} navigate={navigate.search} filter={navigate.filter}/>
-      <Modal
-        aria-label='create-queue-modal'
-        variant={ModalVariant.medium}
-        isOpen={showCreateDialog}
-        onClose={() => setShowCreateDialog(false)}
-        actions={[
-          <Button key="close" variant="primary" onClick={() => setShowCreateDialog(false)}>
-            Close
-          </Button>
-        ]}>
-        <CreateQueue address={address}/>
+    <>
+      <ArtemisTable allColumns={allColumns}
+                    initialFilter={initialFilter}
+                    initialSort={initialSort}
+                    getData={listAddresses}
+                    storageColumnLocation={columnStorage.addresses}
+                    getRowActions={getRowActions}
+                    toolbarActions={canCreateAddress ? [createAction] : []}
+                    refreshCount={refreshCount}
+                    switchTab={props.switchTab}
+                    filters={props.filters}
+                    editGlobalFilter={props.editGlobalFilter} />
+
+      <Modal aria-label='create-queue-modal' variant={ModalVariant.medium} isOpen={showCreateDialog}
+             onClose={() => setShowCreateDialog(false)}
+             onKeyDown={closeWithEscape(setShowCreateDialog)}>
+        <CreateQueue address={address} onClose={() => setShowCreateDialog(false)} />
       </Modal>
-      { canDeleteAddress && <Modal
-        aria-label='delete-address-modal'
-        variant={ModalVariant.medium}
-        isOpen={showDeleteDialog}
-        onClose={() => setShowDeleteDialog(false)}
-        actions={[
-          <Button key="cancel" variant="secondary" onClick={() => setShowDeleteDialog(false)}>
-            Cancel
-          </Button>,
-          <Button key="delete" variant="primary" onClick={handleDeleteAddress}>
+
+      {canDeleteAddress && <Modal aria-label='delete-address-modal' variant={ModalVariant.small} isOpen={showDeleteDialog}
+                                  onClose={() => setShowDeleteDialog(false)}
+                                  onKeyDown={closeWithEscape(setShowDeleteDialog)}>
+        <ModalHeader title='Delete Address?' titleIconVariant='warning' />
+        <ModalBody>
+          <Content component={ContentVariants.p}>
+            You are about to delete address: <b>{address}</b>.
+          </Content>
+          <Content component={ContentVariants.p}>
+            This operation cannot be undone.
+          </Content>
+        </ModalBody>
+        <ModalFooter>
+          <Button key='delete' variant='danger' onClick={handleDeleteAddress}>
             Confirm
           </Button>
-        ]}>
-        <TextContent>
-          <Text component="h2">
-            Confirm Delete Address
-          </Text>
-          <Text component="p">
-            <Icon isInline status='warning'>
-              <ExclamationCircleIcon />
-            </Icon>
-            You are about to delete address {address}
-          </Text>
-          <Text component="p">
-            This operation cannot be undone.
-          </Text>
-        </TextContent>
-      </Modal>
-      }
-      <Modal
-        aria-label='attributes-modal'
-        variant={ModalVariant.medium}
-        isOpen={showAttributesDialog}
-        onClose={() => setShowAttributesDialog(false)}
-        actions={[
-          <Button key="close" variant="primary" onClick={() => setShowAttributesDialog(false)}>
-            Close
-          </Button>
-        ]}>
-        <Attributes />
-      </Modal>
-      <Modal
-        aria-label='operations-modal'
-        variant={ModalVariant.medium}
-        isOpen={showOperationsDialog}
-        onClose={() => setShowOperationsDialog(false)}
-        actions={[
-          <Button key="close" variant="primary" onClick={() => setShowOperationsDialog(false)}>
-            Close
-          </Button>
-        ]}>
-        <Operations />
-      </Modal>
-      <Modal
-        aria-label='create=address-modal'
-        variant={ModalVariant.medium}
-        isOpen={showCreateAddressDialog}
-        onClose={() => setShowCreateAddressDialog(false)}
-        actions={[
-          <Button key="close" variant="primary" onClick={() => setShowCreateAddressDialog(false)}>
-            Close
-          </Button>
-        ]}>
-        <CreateAddress reload={reload}/>
-      </Modal>
-      <Modal
-        aria-label='send-modal'
-        variant={ModalVariant.medium}
-        isOpen={showSendDialog}
-        onClose={() => setShowSendDialog(false)}
-        actions={[
-          <Button key="close" variant="secondary" onClick={() => setShowSendDialog(false)}>
+          <Button key='cancel' variant='link' onClick={() => setShowDeleteDialog(false)}>
             Cancel
           </Button>
-        ]}>
-        <SendMessage address={address} queue={''} routingType={''} isAddress={true} />
-      </Modal>
-    </ArtemisContext.Provider>
-  )
+        </ModalFooter>
+      </Modal>}
 
+      <Modal id='attributes-modal' aria-label='attributes-modal' variant={ModalVariant.large} isOpen={showAttributesDialog}
+             onClose={() => setShowAttributesDialog(false)}
+             onKeyDown={closeWithEscape(setShowAttributesDialog)}>
+        <ModalHeader>
+          <Title headingLevel='h1' size='lg'>JMX Attributes</Title>
+          <Title headingLevel='h2' size='md'>{selectedNode?.objectName}</Title>
+        </ModalHeader>
+        <ModalBody>
+          <PageSection hasBodyWrapper={false} hasOverflowScroll>
+            <Attributes />
+          </PageSection>
+        </ModalBody>
+        <ModalFooter>
+          <Button key='close' variant='primary' onClick={() => setShowAttributesDialog(false)}>
+            Close
+          </Button>
+        </ModalFooter>
+      </Modal>
+
+      <Modal id='operations-modal' aria-label='operations-modal' variant={ModalVariant.large} isOpen={showOperationsDialog}
+             onClose={() => setShowOperationsDialog(false)}
+             onKeyDown={closeWithEscape(setShowOperationsDialog)}>
+        <ModalHeader>
+          <Title headingLevel='h1' size='lg'>JMX Operations</Title>
+          <Title headingLevel='h2' size='md'>{selectedNode?.objectName}</Title>
+        </ModalHeader>
+        <ModalBody>
+          <PageSection hasBodyWrapper={false} hasOverflowScroll>
+            <Operations />
+          </PageSection>
+        </ModalBody>
+        <ModalFooter>
+          <Button key='close' variant='primary' onClick={() => setShowOperationsDialog(false)}>
+            Close
+          </Button>
+        </ModalFooter>
+      </Modal>
+
+      <Modal aria-label='create-address-modal' variant={ModalVariant.medium} isOpen={showCreateAddressDialog}
+             onClose={() => setShowCreateAddressDialog(false)}
+             onKeyDown={closeWithEscape(setShowCreateAddressDialog)}>
+        <CreateAddress reload={reload} onClose={() => setShowCreateAddressDialog(false)} />
+      </Modal>
+
+      {/* Explicitly without onClose and onKeyDown, so user doesn't close the dialog by accident with Escape */}
+      <Modal aria-label='send-modal' variant={ModalVariant.medium} isOpen={showSendDialog}>
+        <SendMessage address={address} queue={''} routingType={''} isAddress={true}
+                     onClose={() => setShowSendDialog(false)} onSend={reload} />
+      </Modal>
+    </>
+  )
 }

@@ -14,232 +14,400 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React, { useContext, useEffect, useState } from 'react'
-import { Column } from '../table/ArtemisTable';
-import { artemisService } from '../artemis-service';
-import { Toolbar, ToolbarContent, ToolbarItem, Text, SearchInput, Button, PaginationVariant, Pagination, DataList, DataListCell, DataListCheck, DataListItem, DataListItemCells, DataListItemRow, Modal, TextContent, Icon, ModalVariant } from '@patternfly/react-core';
-import { Thead, Tr, Th, Tbody, Td, ActionsColumn, IAction, Table, InnerScrollContainer } from '@patternfly/react-table';
-import { ExclamationCircleIcon } from '@patternfly/react-icons/dist/esm/icons/exclamation-circle-icon';
-import { createQueueObjectName } from '../util/jmx';
-import { Link } from 'react-router-dom';
-import { eventService, jolokiaService } from '@hawtio/react';
-import { QueueSelectInput } from './QueueSelect';
-import { SendMessage } from './SendMessage';
-import { Message } from './MessageView';
-import { ArtemisContext } from '../context';
-import { log } from '../globals';
-import { artemisPreferencesService, columnStorage } from '../artemis-preferences-service';
+import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import {
+  Toolbar,
+  ToolbarContent,
+  ToolbarItem,
+  Content,
+  SearchInput,
+  Button,
+  PaginationVariant,
+  Pagination,
+  DataList,
+  DataListCell,
+  DataListCheck,
+  DataListItem,
+  DataListItemCells,
+  DataListItemRow,
+  Modal,
+  ModalFooter,
+  Icon,
+  ModalVariant,
+  ModalHeader,
+  ModalBody,
+  ContentVariants,
+  Title,
+  Flex,
+  FlexItem,
+  PageSection
+} from '@patternfly/react-core'
+import { Thead, Tr, Th, Tbody, Td, ActionsColumn, IAction, Table, InnerScrollContainer } from '@patternfly/react-table'
+import { HelpIcon } from '@patternfly/react-icons/dist/esm/icons/help-icon'
+import { ArrowLeftIcon } from '@patternfly/react-icons/dist/esm/icons/arrow-left-icon'
+import { Link, Navigate, useLocation, useNavigate } from 'react-router'
 
-export type MessageProps = {
-  address: string,
-  queue: string,
-  routingType: string,
-  selectMessage?: Function,
-  back?: Function
+import { eventService, jolokiaService } from '@hawtio/react'
+
+import { ArtemisContext } from '../context'
+import { artemisPluginPath, log } from '../globals'
+import { artemisService, Queue } from '../artemis-service'
+import { artemisPreferencesService, columnStorage } from '../artemis-preferences-service'
+import { ColumnType, type TableColumn, TableRow } from '../table/types'
+import { closeWithEscape } from '../table/utils'
+import { createQueueObjectName } from '../util/jmx'
+import { QueueSelectInput } from './QueueSelect'
+import { SendMessage } from './SendMessage'
+import { Message } from './MessageView'
+
+export type MessageTableProps = {
+  queue?: Queue
+  selectMessage?: (message: Message) => void
+  showTitle?: boolean
+  showBackToQueues?: boolean
+  noNavigate?: boolean
 }
 
+type FilterInformationProps = {
+  showHelpModal: boolean
+  setShowHelpModal: (show: boolean) => void
+}
 
+const FilterInformation: React.FunctionComponent<FilterInformationProps> = props => (
+  <Modal id='filter-information' aria-label='filter-information'
+         variant={ModalVariant.medium}
+         isOpen={props.showHelpModal}
+         onClose={() => props.setShowHelpModal(false)}>
+    <ModalHeader title='Using Filter Expressions' />
+    <ModalBody>
+      <PageSection hasBodyWrapper={false} hasOverflowScroll>
+        <Flex direction={{ default: 'column' }} spaceItems={{ default: 'spaceItemsLg' }} justifyContent={{ default: 'justifyContentSpaceBetween' }}>
+          <FlexItem>
+            <Title headingLevel='h2'>Apache Artemis provides a powerful filter language based on a subset of the SQL 92 expression syntax.</Title>
+            <Content component={ContentVariants.p}>
+              It is similar to the syntax used for JMS Message selectors.
+            <Content component={ContentVariants.p}>
+            </Content>
+              For documentation on JMS selector syntax please the JavaDoc for javax.jms.Message or
+              <Link target='_blank' to={'https://jakarta.ee/specifications/messaging/3.1/apidocs/jakarta.messaging/jakarta/jms/message'}>jakarta.jms.Message</Link>
+            </Content>
+            <Content component={ContentVariants.p}>
+              A Filter will search for messages that have a matching property.
+            </Content>
+          </FlexItem>
+          <FlexItem>
+            <Title headingLevel='h3'>Filter Examples</Title>
+            <Content component={ContentVariants.p}>
+              <Content component={ContentVariants.dl}>
+                <Content component={ContentVariants.dt}>property = 'value'</Content>
+                <Content component={ContentVariants.dd}> This will return any message where the message property <b>property</b> has the string value <b>value</b></Content>
+                <Content component={ContentVariants.dt}>property = 1</Content>
+                <Content component={ContentVariants.dd}> This will return any message where the message property <b>property</b> has the int, short, long or double value <b>1</b></Content>
+                <Content component={ContentVariants.dt}>property {'>'} 1</Content>
+                <Content component={ContentVariants.dd}> This will return any message where the message property <b>property</b> has an int, short, long or double value greater than <b>1</b></Content>
+                <Content component={ContentVariants.dt}>property {'<>'} 'value'</Content>
+                <Content component={ContentVariants.dd}> This will return any message where the message property <b>property</b> exists and does not equal <b>value</b></Content>
+                <Content component={ContentVariants.dt}>property IN ('value1', 'value2')</Content>
+                <Content component={ContentVariants.dd}> This will return any message where the message property <b>property</b> equals either <b>value1</b> or <b>value2</b></Content>
+                <Content component={ContentVariants.dt}>property1 = 'value1' AND property2 = 'value2'</Content>
+                <Content component={ContentVariants.dd}> This will return any message where the message property <b>property1</b> has the value <b>value1</b> and the message property <b>property2</b> has the value <b>value2</b></Content>
+                <Content component={ContentVariants.dt}>property LIKE 'value%'</Content>
+                <Content component={ContentVariants.dd}> This will return any message where the message property <b>property</b> has the pattern matching value <b>value%</b> such as <b>value1</b>, <b>value2345</b> etc</Content>
+                <Content component={ContentVariants.dt}>property LIKE 'value_'</Content>
+                <Content component={ContentVariants.dd}> This will return any message where the message property <b>property</b> has the pattern matching value <b>value_</b> such as <b>value1</b> but not <b>value2345</b></Content>
+                <Content component={ContentVariants.dt}>property IS null</Content>
+                <Content component={ContentVariants.dd}> This will return any message where the message property <b>property</b> has a null value or does not exist</Content>
+              </Content>
+            </Content>
+          </FlexItem>
+          <FlexItem>
+            <Content component={ContentVariants.p}>
+              The following predefined identifiers can also be used to filter messages.
+            </Content>
+            <Content component={ContentVariants.p}>
+              <Content component={ContentVariants.dl}>
+                <Content component={ContentVariants.dt}>AMQUserID</Content>
+                <Content component={ContentVariants.dd}>The ID set by the user when the message is sent. This is analogous to the <b>JMSMessageID</b> for JMS-based clients.</Content>
+                <Content component={ContentVariants.dt}>AMQAddress</Content>
+                <Content component={ContentVariants.dd}>The address to which the message was sent.</Content>
+                <Content component={ContentVariants.dt}>AMQGroupID</Content>
+                <Content component={ContentVariants.dd}>The group ID used when sending the message.</Content>
+                <Content component={ContentVariants.dt}>AMQPriority</Content>
+                <Content component={ContentVariants.dd}>To refer to the priority of a message. Message priorities are integers with valid values from 0 - 9. 0 is the lowest priority and 9 is the highest. e.g. <i>AMQPriority = 3 AND animal = 'aardvark'</i></Content>
+                <Content component={ContentVariants.dt}>AMQExpiration</Content>
+                <Content component={ContentVariants.dd}>To refer to the expiration time of a message. The value is a long integer.</Content>
+                <Content component={ContentVariants.dt}>AMQDurable</Content>
+                <Content component={ContentVariants.dd}>To refer to whether a message is durable or not. The value is a string with valid values: <b>DURABLE</b> or <b>NON_DURABLE</b>.</Content>
+                <Content component={ContentVariants.dt}>AMQTimestamp</Content>
+                <Content component={ContentVariants.dd}>The timestamp of when the message was created. The value is a long integer.</Content>
+                <Content component={ContentVariants.dt}>AMQSize</Content>
+                <Content component={ContentVariants.dd}>The size of a message in bytes. The value is an integer.</Content>
+              </Content>
+            </Content>
+          </FlexItem>
+        </Flex>
+      </PageSection>
+    </ModalBody>
+    <ModalFooter>
+      <Button key="cancel" variant="secondary" onClick={() => props.setShowHelpModal(false)}>
+        Close
+      </Button>
+    </ModalFooter>
+  </Modal>
+)
 
-export const MessagesTable: React.FunctionComponent<MessageProps> = props => {
+export const MessagesTable: React.FunctionComponent<MessageTableProps> = props => {
 
+  const navigate = useNavigate()
+  const { search } = useLocation()
 
-  const messageView = (row: any) => {
-    if (props.selectMessage) { props.selectMessage(row); }
-  }
+  // a function that shows message details for one selected message
+  const messageView = useCallback((row: TableRow) => {
+    // TableRow is generic Record<string, any>, we can cast it to Message here
+    if (props.selectMessage) {
+      props.selectMessage(row as Message)
+      if (!props.noNavigate) {
+        navigate({ pathname: `${artemisPluginPath}/queues/message/details`, search })
+      }
+    }
+  }, [props.selectMessage])
 
-  const allColumns: Column[] = [
-    { id: 'messageID', name: 'Message ID', visible: true, sortable: true, filterable: true, link: messageView },
-    { id: 'type', name: 'Type', visible: true, sortable: true, filterable: true },
-    { id: 'durable', name: 'Durable', visible: true, sortable: true, filterable: true },
-    { id: 'priority', name: 'Priority', visible: true, sortable: true, filterable: true },
-    { id: 'timestamp', name: 'Timestamp', visible: true, sortable: true, filterable: true },
-    { id: 'expiration', name: 'Expires', visible: true, sortable: true, filterable: true },
-    { id: 'redelivered', name: 'Redelivered', visible: true, sortable: true, filterable: true },
-    { id: 'largeMessage', name: 'Large', visible: true, sortable: true, filterable: true },
-    { id: 'persistentSize', name: 'Persistent Size', visible: true, sortable: true, filterable: true },
-    { id: 'userID', name: 'User ID', visible: false, sortable: true, filterable: false },
-    { id: 'validatedUser', name: 'Validated User', visible: false, sortable: true, filterable: false },
-    { id: 'originalQueue', name: 'Original Queue', visible: false, sortable: true, filterable: false },
-  ];
-  const [filter, setFilter] = useState("");
-  const [inputValue, setInputValue] = useState('');
-  const [page, setPage] = useState(1);
+  // These columns are not based on any ActiveMQAbstractView. They directly relate to
+  // javax.management.openmbean.CompositeData[] returned from org.apache.activemq.artemis.api.core.management.QueueControl#browse()
+  // The type may vary depending on the protocol used.
+  //  + messageID: string
+  //  + type: byte (mapped to string)
+  //  + durable: boolean
+  //  + priority: byte
+  //  + timestamp: long
+  //  + expiration: long
+  //  ~ address: string (taken from the queue being browsed)
+  //  + redelivered: boolean
+  //  + largeMessage: boolean
+  //  + persistentSize: long
+  //  + userID: string
+  //  + protocol: string
+  //  - PropertiesText: string
+  //  - StringProperties: [string]
+  //  - BooleanProperties: [boolean]
+  //  - ByteProperties: [byte]
+  //  - ShortProperties: [short]
+  //  - IntProperties: [int]
+  //  - LongProperties: [long]
+  //  - FloatProperties: [float]
+  //  - DoubleProperties: [double]
+  //  - text: string (for text messages)
+  //  - BodyPreview: [byte] (for non-text messages)
+  const allColumns: TableColumn[] = useMemo(() => [
+    { id: 'messageID', type: ColumnType.STRING, name: 'Message ID', visible: true, sortable: true, filterable: true, link: messageView },
+    { id: 'type', type: ColumnType.STRING, name: 'Type', visible: true, sortable: true, filterable: true },
+    { id: 'durable', type: ColumnType.STRING, name: 'Durable', visible: true, sortable: true, filterable: true },
+    { id: 'priority', type: ColumnType.NUMBER, name: 'Priority', visible: true, sortable: true, filterable: true },
+    { id: 'timestamp', type: ColumnType.NUMBER, name: 'Timestamp', visible: true, sortable: true, filterable: true },
+    { id: 'expiration', type: ColumnType.NUMBER, name: 'Expires', visible: true, sortable: true, filterable: true },
+    { id: 'redelivered', type: ColumnType.BOOLEAN, name: 'Redelivered', visible: true, sortable: true, filterable: true },
+    { id: 'largeMessage', type: ColumnType.BOOLEAN, name: 'Large', visible: true, sortable: true, filterable: true },
+    { id: 'persistentSize', type: ColumnType.NUMBER, name: 'Persistent Size', visible: true, sortable: true, filterable: true },
+    { id: 'userID', type: ColumnType.STRING, name: 'User ID', visible: false, sortable: true, filterable: false },
+    { id: 'protocol', type: ColumnType.STRING, name: 'Protocol', visible: false, sortable: false, filterable: false },
+    // these 2 are not available on Artemis 2.57.0
+    // { id: 'validatedUser', type: ColumnType.STRING, name: 'Validated User', visible: false, sortable: true, filterable: false },
+    // { id: 'originalQueue', type: ColumnType.STRING, name: 'Original Queue', visible: false, sortable: true, filterable: false },
+  ], [messageView])
+
+  const [filter, setFilter] = useState('')
+  const [inputValue, setInputValue] = useState('')
+  const [page, setPage] = useState(1)
   const [rows, setRows] = useState([])
-  const [perPage, setPerPage] = useState(10);
-  const [columns, setColumns] = useState(allColumns);
-  const [columnsLoaded, setColumnsLoaded] = useState(false);
-  const [columnsModalOpen, setColumnsModalOpen] = useState(false);
-  const [resultsSize, setresultsSize] = useState(0);
-  const [selectedMessages, setSelectedMessages] = useState<number[]>([]);
-  const [selectedTargetQueue, setSelectedTargetQueue] = useState<string>('');
-  const [showDeleteMessagesModal, setShowDeleteMessagesModal] = useState(false);
-  const [showMoveMessagesModal, setShowMoveMessagesModal] = useState(false);
-  const [showCopyMessagesModal, setShowCopyMessagesModal] = useState(false);
-  const [showRetryMessagesModal, setShowRetryMessagesModal] = useState(false);
-  const [showResendModal, setShowResendModal] = useState(false);
-  const [ resendMessage, setResendMessage] = useState<Message | undefined>();
+  const [perPage, setPerPage] = useState(10)
+  const [columns, setColumns] = useState(allColumns)
+  const [columnsLoaded, setColumnsLoaded] = useState(false)
+  const [columnsModalOpen, setColumnsModalOpen] = useState(false)
+  const [resultsSize, setResultsSize] = useState(0)
+  const [selectedMessages, setSelectedMessages] = useState<number[]>([])
+  const [selectedTargetQueue, setSelectedTargetQueue] = useState<string>('')
+  const [showDeleteMessagesModal, setShowDeleteMessagesModal] = useState(false)
+  const [showMoveMessagesModal, setShowMoveMessagesModal] = useState(false)
+  const [showCopyMessagesModal, setShowCopyMessagesModal] = useState(false)
+  const [showRetryMessagesModal, setShowRetryMessagesModal] = useState(false)
+  const [showResendModal, setShowResendModal] = useState(false)
+  const [resendMessage, setResendMessage] = useState<Message | undefined>()
+  const [showHelpModal, setShowHelpModal] = useState(false)
+  const [refreshCount, setRefreshCount] = useState(0)
 
-  const { brokerNode } = useContext(ArtemisContext);
+  const { brokerNode } = useContext(ArtemisContext)
 
   useEffect(() => {
+    let apply = true
     const listData = async () => {
       listMessages().then((data) => {
-        setRows(data.data);
-        setresultsSize(data.count);
+        if (apply && data) {
+          setRows(data.data)
+          setResultsSize(data.count)
+        }
       }).catch((error) => {
-        eventService.notify({type: 'warning', message: jolokiaService.errorMessage(error) })
+        eventService.notify({ type: 'warning', message: jolokiaService.errorMessage(error) })
       })
     }
     const listMessages = async (): Promise<any> => {
-      const brokerObjectname = await artemisService.getBrokerObjectName();
-      const queueMBean: string = createQueueObjectName(brokerObjectname, props.address, props.routingType, props.queue);
-      const response = await artemisService.getMessages(queueMBean, page, perPage, filter);
-      return response;
+      if (props.queue) {
+        const brokerObjectName = await artemisService.getBrokerObjectName()
+        const queueMBean: string = createQueueObjectName(brokerObjectName, props.queue.address, props.queue.routingType, props.queue.name)
+        return await artemisService.getMessages(queueMBean, page, perPage, filter)
+      }
     }
-    setPerPage(artemisPreferencesService.loadTablePageSize(columnStorage.messages));
+    setPerPage(artemisPreferencesService.loadTablePageSize(columnStorage.messages))
     if (!columnsLoaded) {
-      const updatedColumns: Column[] = artemisPreferencesService.loadColumnPreferences(columnStorage.messages, allColumns);
-      setColumns(updatedColumns);
-      setColumnsLoaded(true);
+      const updatedColumns: TableColumn[] = artemisPreferencesService.loadColumnPreferences(columnStorage.messages, allColumns)
+      setColumns(updatedColumns)
+      setColumnsLoaded(true)
     }
-    listData();
+    listData()
 
-  }, [props.address, props.routingType, props.queue, page, perPage, filter, selectedMessages])
+    return () => {
+      apply = false
+    }
+  }, [props.queue, page, perPage, filter, selectedMessages, refreshCount])
+
+  if (!props.queue) {
+    // React-component-style redirect to one level up - no need to handle the case where this message
+    // list is embedded under ArtemisJMXTabs because the queue is always passed
+    return <Navigate to={{ pathname: `${artemisPluginPath}/queues`, search }} replace />
+  }
+
+  const queue = props.queue!
 
   const handleSetPage = (_event: React.MouseEvent | React.KeyboardEvent | MouseEvent, newPage: number) => {
-    setPage(newPage);
-  };
+    setPage(newPage)
+  }
 
-  const handlePerPageSelect = (_event: React.MouseEvent | React.KeyboardEvent | MouseEvent, newPerPage: number, newPage: number) => {
+  const handlePerPageSelect = (_event: React.MouseEvent | React.KeyboardEvent | MouseEvent, newPerPage: number, _newPage: number) => {
     artemisPreferencesService.saveTablePageSize(columnStorage.messages, newPerPage)
-    setPerPage(newPerPage);
-    setPage(1);
-    selectAllMessages(false);
-  };
+    setPerPage(newPerPage)
+    setPage(1)
+    selectAllMessages(false)
+  }
 
   const handleColumnsModalToggle = () => {
-    setColumnsModalOpen(!columnsModalOpen);
-  };
+    setColumnsModalOpen(!columnsModalOpen)
+  }
 
   const onSearchTextChange = (newValue: string) => {
-    setInputValue(newValue);
-  };
+    setInputValue(newValue)
+  }
 
   const applyFilter = () => {
-    setPage(1);
-    setFilter(inputValue);
-  };
+    setPage(1)
+    setFilter(inputValue)
+  }
 
-  const getRowActions = (row: any): IAction[] => {
+  const getRowActions = (row: TableRow): IAction[] => {
     return [
       {
         title: 'Delete',
         id: 'message-dropdown-delete',
         onClick: () => {
-          setSelectedMessages([row.messageID]);
-          setShowDeleteMessagesModal(true);
+          setSelectedMessages([Number(artemisService.getKeyByValue(row, "messageID"))])
+          setShowDeleteMessagesModal(true)
         }
       },
       {
         title: 'View',
         id: 'message-dropdown-view',
         onClick: () => {
-          if (props.selectMessage) { props.selectMessage(row); }
+          messageView(row)
         }
       },
       {
         title: 'Resend',
         id: 'message-dropdown-resend',
         onClick: () => {
-          if (props.selectMessage) { 
-            setResendMessage(row);
-            setShowResendModal(true);
-          }
+          setResendMessage(row as Message)
+          setShowResendModal(true)
         }
       }
     ]
-  };
+  }
 
   const selectAllColumns = () => {
     const updatedColumns = [...columns]
     updatedColumns.map((column) => {
-      column.visible = true;
-      return true;
+      column.visible = true
+      return true
     })
-    setColumns(updatedColumns);
-  };
+    setColumns(updatedColumns)
+  }
 
   const unselectAllColumns = () => {
     const updatedColumns = [...columns]
     updatedColumns.map((column) => {
-      column.visible = false;
-      return false;
+      column.visible = false
+      return false
     })
-    setColumns(updatedColumns);
-  };
-
-  const onSave = () => {
-    setColumnsModalOpen(!columnsModalOpen);
-    artemisPreferencesService.saveColumnPreferences(columnStorage.messages, columns);
-  };
-
-  const updateColumnStatus = (index: number, column: Column) => {
-    const updatedColumns = [...columns];
-    updatedColumns[index].visible = !columns[index].visible;
-    setColumns(updatedColumns);
+    setColumns(updatedColumns)
   }
 
-  const onSelectMessage = (id: number, inex: number, selected: boolean) => {
-    let updatedSelectedMessages: number[] = [];
+  const onSave = () => {
+    setColumnsModalOpen(!columnsModalOpen)
+    artemisPreferencesService.saveColumnPreferences(columnStorage.messages, columns)
+  }
+
+  const updateColumnStatus = (index: number, _column: TableColumn) => {
+    const updatedColumns = [...columns]
+    updatedColumns[index].visible = !columns[index].visible
+    setColumns(updatedColumns)
+  }
+
+  const onSelectMessage = (id: number, _index: number, selected: boolean) => {
+    let updatedSelectedMessages: number[] = []
     if (selected) {
-      selectedMessages.forEach((id) => updatedSelectedMessages.push(id));
-      updatedSelectedMessages.push(id);
+      selectedMessages.forEach((id) => updatedSelectedMessages.push(id))
+      updatedSelectedMessages.push(id)
       setSelectedMessages(updatedSelectedMessages)
     } else {
-      updatedSelectedMessages = selectedMessages.splice(selectedMessages.indexOf(id), 1);
-      selectedMessages.forEach((id) => updatedSelectedMessages.push(id));
-      updatedSelectedMessages.splice(updatedSelectedMessages.indexOf(id), 1);
+      updatedSelectedMessages = selectedMessages.splice(selectedMessages.indexOf(id), 1)
+      selectedMessages.forEach((id) => updatedSelectedMessages.push(id))
+      updatedSelectedMessages.splice(updatedSelectedMessages.indexOf(id), 1)
       setSelectedMessages(updatedSelectedMessages)
     }
   }
 
-  const isMessageSelected = (id: number) => {
-    return selectedMessages.includes(id);
-  }
+  const isMessageSelected = useCallback((id: number) => {
+    return selectedMessages.includes(id)
+  }, [selectedMessages])
 
-  const doesCopyMessagemethodExist = artemisService.doesMethodExist(brokerNode, props.queue, "copyMessage");
+  const doesCopyMessageMethodExist = artemisService.doesMethodExist(brokerNode, props.queue.name, "copyMessage")
 
-  const isRetryQueue = props.queue.match(artemisPreferencesService.loadArtemisPreferences().artemisDLQ) || props.queue.match(artemisPreferencesService.loadArtemisPreferences().artemisExpiryQueue);
+  const isRetryQueue = props.queue.name.match(artemisPreferencesService.loadArtemisPreferences().artemisDLQ)
+      || props.queue.name.match(artemisPreferencesService.loadArtemisPreferences().artemisExpiryQueue)
 
-  if(!doesCopyMessagemethodExist) {
-    log.warn("Copy button method not available in this version of Artemis");
-    
+  if (!doesCopyMessageMethodExist) {
+    log.warn("Copy button method not available in this version of Artemis")
   }
 
   const selectAllMessages = (isSelecting: boolean) => {
-    if(isSelecting) {
-        const updatedSelectedMessages: number[] = rows.map((row: any, index) => {
-          return Number(row.messageID);
+    if (isSelecting) {
+      const updatedSelectedMessages: number[] = rows.map((row: TableRow, _index) => {
+        return Number(row.messageID)
       })
-     setSelectedMessages(updatedSelectedMessages);
+      setSelectedMessages(updatedSelectedMessages)
     } else {
-      setSelectedMessages([]);
+      setSelectedMessages([])
     }
   }
 
-  const areAllMessagesSelected = selectedMessages.length === rows.length;
+  const areAllMessagesSelected = rows.length !== 0 && selectedMessages.length === rows.length
 
   const handleDeleteMessages = () => {
-
-    const isRejected = <T,>(p: PromiseSettledResult<T>): p is PromiseRejectedResult => p.status === 'rejected';
-    const results: Promise<unknown>[] = [];
+    const isRejected = <T,>(p: PromiseSettledResult<T>): p is PromiseRejectedResult => p.status === 'rejected'
+    const results: Promise<unknown>[] = []
     for (let i = 0; i < selectedMessages.length; i++) {
-      const promise: Promise<unknown> = artemisService.deleteMessage(selectedMessages[i], props.address, props.routingType, props.queue);
-      results.push(promise);
-    };
+      const promise: Promise<unknown> = artemisService.deleteMessage(selectedMessages[i], queue.address, queue.routingType, queue.name)
+      results.push(promise)
+    }
     Promise.allSettled(results)
       .then((results) => {
-        const rejectedReasons = results.filter(isRejected).map(p => p.reason);
+        const rejectedReasons = results.filter(isRejected).map(p => p.reason)
 
         if (rejectedReasons.length > 0) {
           eventService.notify({
@@ -252,23 +420,22 @@ export const MessagesTable: React.FunctionComponent<MessageProps> = props => {
             message: "Messages deleted successfully [" + selectedMessages + "]",
           })
         }
-      });
+      })
 
-    setShowDeleteMessagesModal(false);
-    setSelectedMessages([]);
+    setShowDeleteMessagesModal(false)
+    setSelectedMessages([])
   }
 
   const handleMoveMessages = () => {
-
-    const isRejected = <T,>(p: PromiseSettledResult<T>): p is PromiseRejectedResult => p.status === 'rejected';
-    const results: Promise<unknown>[] = [];
+    const isRejected = <T,>(p: PromiseSettledResult<T>): p is PromiseRejectedResult => p.status === 'rejected'
+    const results: Promise<unknown>[] = []
     for (let i = 0; i < selectedMessages.length; i++) {
-      const promise: Promise<unknown> = artemisService.moveMessage(selectedMessages[i], selectedTargetQueue, props.address, props.routingType, props.queue);
-      results.push(promise);
-    };
+      const promise: Promise<unknown> = artemisService.moveMessage(selectedMessages[i], selectedTargetQueue, queue.address, queue.routingType, queue.name)
+      results.push(promise)
+    }
     Promise.allSettled(results)
       .then((results) => {
-        const rejectedReasons = results.filter(isRejected).map(p => p.reason);
+        const rejectedReasons = results.filter(isRejected).map(p => p.reason)
 
         if (rejectedReasons.length > 0) {
           eventService.notify({
@@ -281,23 +448,22 @@ export const MessagesTable: React.FunctionComponent<MessageProps> = props => {
             message: "Messages moved successfully [" + selectedMessages + "]",
           })
         }
-      });
+      })
 
-    setShowMoveMessagesModal(false);
-    setSelectedMessages([]);
+    setShowMoveMessagesModal(false)
+    setSelectedMessages([])
   }
 
   const handleCopyMessages = () => {
-
-    const isRejected = <T,>(p: PromiseSettledResult<T>): p is PromiseRejectedResult => p.status === 'rejected';
-    const results: Promise<unknown>[] = [];
+    const isRejected = <T,>(p: PromiseSettledResult<T>): p is PromiseRejectedResult => p.status === 'rejected'
+    const results: Promise<unknown>[] = []
     for (let i = 0; i < selectedMessages.length; i++) {
-      const promise: Promise<unknown> = artemisService.copyMessage(selectedMessages[i], selectedTargetQueue, props.address, props.routingType, props.queue);
-      results.push(promise);
-    };
+      const promise: Promise<unknown> = artemisService.copyMessage(selectedMessages[i], selectedTargetQueue, queue.address, queue.routingType, queue.name)
+      results.push(promise)
+    }
     Promise.allSettled(results)
       .then((results) => {
-        const rejectedReasons = results.filter(isRejected).map(p => p.reason);
+        const rejectedReasons = results.filter(isRejected).map(p => p.reason)
 
         if (rejectedReasons.length > 0) {
           eventService.notify({
@@ -310,23 +476,22 @@ export const MessagesTable: React.FunctionComponent<MessageProps> = props => {
             message: "Messages Successfully Copied [" + selectedMessages + "]",
           })
         }
-      });
+      })
 
-    setShowCopyMessagesModal(false);
-    setSelectedMessages([]);
+    setShowCopyMessagesModal(false)
+    setSelectedMessages([])
   }
 
   const handleRetryMessages = () => {
-
-    const isRejected = <T,>(p: PromiseSettledResult<T>): p is PromiseRejectedResult => p.status === 'rejected';
-    const results: Promise<unknown>[] = [];
+    const isRejected = <T,>(p: PromiseSettledResult<T>): p is PromiseRejectedResult => p.status === 'rejected'
+    const results: Promise<unknown>[] = []
     for (let i = 0; i < selectedMessages.length; i++) {
-      const promise: Promise<unknown> = artemisService.retryMessage(selectedMessages[i], props.address, props.routingType, props.queue);
-      results.push(promise);
-    };
+      const promise: Promise<unknown> = artemisService.retryMessage(selectedMessages[i], queue.address, queue.routingType, queue.name)
+      results.push(promise)
+    }
     Promise.allSettled(results)
       .then((results) => {
-        const rejectedReasons = results.filter(isRejected).map(p => p.reason);
+        const rejectedReasons = results.filter(isRejected).map(p => p.reason)
 
         if (rejectedReasons.length > 0) {
           eventService.notify({
@@ -339,76 +504,91 @@ export const MessagesTable: React.FunctionComponent<MessageProps> = props => {
             message: "Messages Successfully Retried [" + selectedMessages + "]",
           })
         }
-      });
+      })
 
-    setShowRetryMessagesModal(false);
-    setSelectedMessages([]);
+    setShowRetryMessagesModal(false)
+    setSelectedMessages([])
   }
 
   return (
-    <React.Fragment>
-      <Toolbar id="toolbar">
+    <>
+      {props.showTitle && <Flex direction={{ default: 'row' }} justifyContent={{ default: 'justifyContentSpaceBetween' }}>
+        <FlexItem>
+          <Title headingLevel='h2'>Browsing {props.queue.name + ' '} <Icon status="info"><HelpIcon onClick={() => setShowHelpModal(true)}/></Icon></Title>
+        </FlexItem>
+        {props.showBackToQueues && <FlexItem>
+          <Button variant='link' onClick={() => {
+            navigate({ pathname: `${artemisPluginPath}/queues`, search })
+          }}>
+            <Icon><ArrowLeftIcon /></Icon> Back to Queue list
+          </Button>
+        </FlexItem>}
+      </Flex>}
+      <Toolbar id='artemis-tabs-toolbar'>
         <ToolbarContent>
-          <ToolbarItem variant="search-filter">
+          <ToolbarItem>
             <SearchInput
               aria-label="With filters example search input"
               onChange={(_event, value) => onSearchTextChange(value)}
               value={inputValue}
               onClear={() => {
-                onSearchTextChange('');
-                applyFilter();
+                onSearchTextChange('')
+                applyFilter()
               }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
-                  applyFilter();
+                  applyFilter()
                 }
               }}
             />
           </ToolbarItem>
           <ToolbarItem>
-            <Button onClick={applyFilter}>Filter</Button>
+            <Button onClick={applyFilter} size='sm'>Filter</Button>
           </ToolbarItem>
           <ToolbarItem>
-            <Button isDisabled={selectedMessages.length === 0} onClick={() => setShowDeleteMessagesModal(true)}>Delete</Button>
+            <Button isDisabled={selectedMessages.length === 0} size='sm' onClick={() => setShowDeleteMessagesModal(true)}>Delete</Button>
           </ToolbarItem>
           <ToolbarItem>
-            <Button isDisabled={selectedMessages.length === 0} onClick={() => setShowMoveMessagesModal(true)}>Move</Button>
+            <Button isDisabled={selectedMessages.length === 0} size='sm' onClick={() => setShowMoveMessagesModal(true)}>Move</Button>
           </ToolbarItem>
           <ToolbarItem>
-            <Button onClick={() => setShowCopyMessagesModal(true)} isDisabled={!doesCopyMessagemethodExist || selectedMessages.length === 0}>Copy</Button>
+            <Button onClick={() => setShowCopyMessagesModal(true)} size='sm' isDisabled={!doesCopyMessageMethodExist || selectedMessages.length === 0}>Copy</Button>
           </ToolbarItem>
-          { isRetryQueue &&
+          {isRetryQueue &&
             <ToolbarItem>
-              <Button isDisabled={selectedMessages.length === 0} onClick={() => setShowRetryMessagesModal(true)}>Retry</Button>
+              <Button isDisabled={selectedMessages.length === 0} size='sm' onClick={() => setShowRetryMessagesModal(true)}>Retry</Button>
             </ToolbarItem>
           }
+          <ToolbarItem variant="separator" />
           <ToolbarItem>
-            <Button variant='link' onClick={handleColumnsModalToggle} >Manage Columns</Button>
+            <Button variant='link' onClick={handleColumnsModalToggle}>Manage Columns</Button>
           </ToolbarItem>
         </ToolbarContent>
       </Toolbar>
+
       <InnerScrollContainer>
-      <Table id='message-table' variant="compact" aria-label="Column Management Table">
-        <Thead>
-          <Tr >
-            <Th
-            select={{
-              onSelect: (_event, isSelecting) => selectAllMessages(isSelecting),
-              isSelected: areAllMessagesSelected
-            }}
-          />
-            {columns.map((column, id) => {
-              if (column.visible) {
-                return <Th key={id}>{column.name}</Th>
-              } else return ''
-            }
-            )}
-          </Tr>
-        </Thead>
-        <Tbody>
-          {rows.map((row, rowIndex) => (
-            <Tr key={rowIndex}>
-              <>
+        <Table id='message-table' isStickyHeader variant='compact' aria-label='Message Table'>
+          <Thead>
+            <Tr>
+              <Th
+                select={{
+                  onSelect: (_event, isSelecting) => selectAllMessages(isSelecting),
+                  isSelected: areAllMessagesSelected
+                }}
+              />
+              {columns.map((column, id) => {
+                if (column.visible) {
+                  return <Th key={id}>{column.name}</Th>
+                } else {
+                  return null
+                }
+              })}
+              <Th aria-label='actions' />
+            </Tr>
+          </Thead>
+          <Tbody>
+            {rows.map((row, rowIndex) => (
+              <Tr key={rowIndex}>
                 <Td
                   select={{
                     rowIndex,
@@ -418,27 +598,27 @@ export const MessagesTable: React.FunctionComponent<MessageProps> = props => {
                 />
                 {columns.map((column, id) => {
                   if (column.visible) {
-                    const text = artemisService.getKeyByValue(row, column.id);
+                    const text = artemisService.getKeyByValue(row, column.id)
                     if (column.link) {
-                      return <Td key={id}><Link to="" onClick={() => { if (column.link) { column.link(row) } }}>{text}</Link></Td>
+                      return <Td key={id}><Button variant='link' isInline
+                                                  onClick={() => { if (column.link) { column.link(row) } }}>{text}</Button></Td>
                     } else {
                       return <Td key={id}>{text}</Td>
                     }
-                  } else return ''
+                  } else {
+                    return null
+                  }
                 }
                 )}
                 <Td isActionCell>
-                  <ActionsColumn
-                    items={getRowActions(row)}
-                    popperProps={{ position: 'right', appendTo: () => (document.getElementById('root') as HTMLElement) }}
-                  />
+                  <ActionsColumn items={getRowActions(row)} popperProps={{ position: 'end' }} />
                 </Td>
-              </>
-            </Tr>
-          ))}
-        </Tbody>
-      </Table>
+              </Tr>
+            ))}
+          </Tbody>
+        </Table>
       </InnerScrollContainer>
+
       <Pagination
         itemCount={resultsSize}
         page={page}
@@ -450,181 +630,152 @@ export const MessagesTable: React.FunctionComponent<MessageProps> = props => {
           paginationAriaLabel: `${PaginationVariant.bottom} pagination`
         }}
       />
-      {props.back &&
-        <Button id='message-table-queues-button' onClick={() => { if (props.back) { props.back(0) } }}>Queues</Button>
-      }
-      <Modal
-        aria-label='delete-message-modal'
-        variant={ModalVariant.medium}
-        isOpen={showDeleteMessagesModal}
-        onClose={() => setShowDeleteMessagesModal(false)}
-        actions={[
-          <Button key="cancel" variant="secondary" onClick={() => setShowDeleteMessagesModal(false)}>
-            Cancel
-          </Button>,
-          <Button key="delete" variant="primary" onClick={handleDeleteMessages}>
+
+      <Modal aria-label='delete-message-modal' variant={ModalVariant.medium} isOpen={showDeleteMessagesModal}
+             onClose={() => setShowDeleteMessagesModal(false)}
+             onKeyDown={closeWithEscape(setShowDeleteMessagesModal)}>
+        <ModalHeader title='Confirm Delete Message(s)' titleIconVariant='warning' />
+        <ModalBody>
+          <Content component={ContentVariants.p}>
+            You are about to delete message(s): {selectedMessages.toString()}.
+          </Content>
+          <Content component={ContentVariants.p}>
+            This operation cannot be undone.
+          </Content>
+        </ModalBody>
+        <ModalFooter>
+          <Button key="delete" variant="danger" onClick={handleDeleteMessages}>
             Confirm
           </Button>
-        ]}>
-        <TextContent>
-          <Text component="h2">
-            Confirm Delete Message(s)
-          </Text>
-          <Text component="p">
-            <Icon isInline status='warning'>
-              <ExclamationCircleIcon />
-            </Icon>
-            You are about to delete message(s) {selectedMessages.toString()}
-          </Text>
-          <Text component="p">
-            This operation cannot be undone.
-          </Text>
-        </TextContent>
-      </Modal>
-      <Modal
-        aria-label='move-message-modal'
-        variant={ModalVariant.medium}
-        isOpen={showMoveMessagesModal}
-        actions={[
-          <Button key="cancel" variant="secondary" onClick={() => setShowMoveMessagesModal(false)}>
+          <Button key="cancel" variant="link" onClick={() => setShowDeleteMessagesModal(false)}>
             Cancel
-          </Button>,
+          </Button>
+        </ModalFooter>
+      </Modal>
+
+      <Modal aria-label='move-message-modal' variant={ModalVariant.medium} isOpen={showMoveMessagesModal}
+             onClose={() => setShowMoveMessagesModal(false)}
+             onKeyDown={closeWithEscape(setShowMoveMessagesModal)}>
+        <ModalHeader title='Confirm Move Message(s)' titleIconVariant='warning' />
+        <ModalBody>
+          <Content component={ContentVariants.p}>
+            You are about to move message(s): {selectedMessages.toString()}.
+          </Content>
+          <Content component={ContentVariants.p}>
+            This operation cannot be undone.
+          </Content>
+          <QueueSelectInput selectQueue={setSelectedTargetQueue}/>
+        </ModalBody>
+        <ModalFooter>
           <Button key="move" variant="primary" onClick={handleMoveMessages}>
             Confirm
           </Button>
-        ]}>
-        <TextContent>
-          <Text component="h2">
-            Confirm Move Message(s)
-          </Text>
-          <Text component="p">
-            <Icon isInline status='warning'>
-              <ExclamationCircleIcon />
-            </Icon>
-            You are about to move messages {selectedMessages.toString()}
-          </Text>
-          <Text component="p">
-            This operation cannot be undone.
-          </Text>
-          <QueueSelectInput selectQueue={setSelectedTargetQueue}/>
-        </TextContent>
-      </Modal>
-      <Modal
-        aria-label='copy-message-modal'
-        variant={ModalVariant.medium}
-        isOpen={showCopyMessagesModal}
-        actions={[
-          <Button key="cancel" variant="secondary" onClick={() => setShowCopyMessagesModal(false)}>
+          <Button key="cancel" variant="link" onClick={() => setShowMoveMessagesModal(false)}>
             Cancel
-          </Button>,
+          </Button>
+        </ModalFooter>
+      </Modal>
+
+      <Modal aria-label='copy-message-modal' variant={ModalVariant.medium} isOpen={showCopyMessagesModal}
+             onClose={() => setShowCopyMessagesModal(false)}
+             onKeyDown={closeWithEscape(setShowCopyMessagesModal)}>
+        <ModalHeader title='Confirm Copy Message(s)' titleIconVariant='info' />
+        <ModalBody>
+          <Content component={ContentVariants.p}>
+            You are about to copy message(s): {selectedMessages.toString()}.
+          </Content>
+          <Content component={ContentVariants.p}>
+            This operation cannot be undone.
+          </Content>
+          <QueueSelectInput selectQueue={setSelectedTargetQueue}/>
+        </ModalBody>
+        <ModalFooter>
           <Button key="copy" variant="primary" onClick={handleCopyMessages}>
             Confirm
           </Button>
-        ]}>
-        <TextContent>
-          <Text component="h2">
-            Confirm Copy Message(s)
-          </Text>
-          <Text component="p">
-            <Icon isInline status='warning'>
-              <ExclamationCircleIcon />
-            </Icon>
-            You are about to copy messages {selectedMessages.toString()}
-          </Text>
-          <Text component="p">
-            This operation cannot be undone so please be careful.
-          </Text>
-          <QueueSelectInput selectQueue={setSelectedTargetQueue}/>
-        </TextContent>
-      </Modal>
-      <Modal
-        aria-label='retry-messagse-modal'
-        variant={ModalVariant.medium}
-        isOpen={showRetryMessagesModal}
-        actions={[
-          <Button key="cancel" variant="secondary" onClick={() => setShowRetryMessagesModal(false)}>
+          <Button key="cancel" variant="link" onClick={() => setShowCopyMessagesModal(false)}>
             Cancel
-          </Button>,
-          <Button key="copy" variant="primary" onClick={handleRetryMessages}>
+          </Button>
+        </ModalFooter>
+      </Modal>
+
+      <Modal aria-label='retry-messagse-modal' variant={ModalVariant.medium} isOpen={showRetryMessagesModal}
+             onClose={() => setShowRetryMessagesModal(false)}
+             onKeyDown={closeWithEscape(setShowRetryMessagesModal)}>
+        <ModalHeader title='Confirm Retry Message(s)' titleIconVariant='info' />
+        <ModalBody>
+          <Content component={ContentVariants.p}>
+            You are about to retry message(s): {selectedMessages.toString()}.
+          </Content>
+          <Content component={ContentVariants.p}>
+            This operation cannot be undone.
+          </Content>
+        </ModalBody>
+        <ModalFooter>
+          <Button key="confirm" variant="primary" onClick={handleRetryMessages}>
             Confirm
           </Button>
-        ]}>
-        <TextContent>
-          <Text component="h2">
-            Confirm Retry Message(s)
-          </Text>
-          <Text component="p">
-            <Icon isInline status='warning'>
-              <ExclamationCircleIcon />
-            </Icon>
-            You are about to retry messages {selectedMessages.toString()}
-          </Text>
-          <Text component="p">
-            This operation cannot be undone so please be careful.
-          </Text>
-        </TextContent>
-      </Modal>
-      <Modal
-        title="Resend Message"
-        isOpen={showResendModal}
-        variant="small"
-        description={''}
-        onClose={() => setShowResendModal(false)}
-        actions={[
-          <Button key="close" variant="secondary" onClick={() => setShowResendModal(false)}>
+          <Button key="cancel" variant="link" onClick={() => setShowRetryMessagesModal(false)}>
             Cancel
           </Button>
-        ]}>
-          <SendMessage queue={props.queue} routingType={props.routingType} address={props.address} isAddress={false} message={resendMessage}/>
-        </Modal>
-      <Modal
-        title="Manage columns"
-        isOpen={columnsModalOpen}
-        variant="small"
-        description={
-          <TextContent>
-            <Text>Selected categories are displayed in the table.</Text>
-            <Button isInline onClick={selectAllColumns} variant="link">
+        </ModalFooter>
+      </Modal>
+
+      <Modal aria-label='resend-modal' variant={ModalVariant.medium} isOpen={showResendModal}>
+        <SendMessage address={queue.address} queue={queue.name} routingType={queue.routingType} isAddress={false} message={resendMessage}
+                     title='Resend Message'
+                     onClose={() => setShowResendModal(false)}
+                     onSend={() => setRefreshCount(c => c + 1)} />
+      </Modal>
+
+      <Modal isOpen={columnsModalOpen} variant="small" onClose={handleColumnsModalToggle}>
+        <ModalHeader>
+          <Title headingLevel='h2' size='lg'>Manage Columns</Title>
+          <Content>Selected categories are displayed in the table.</Content>
+          <Content>
+            <Button isInline onClick={selectAllColumns} variant='link'>
               Select all
             </Button>{ ' | ' }
-            <Button isInline onClick={unselectAllColumns} variant="link">
+            <Button isInline onClick={unselectAllColumns} variant='link'>
               Unselect all
             </Button>
-          </TextContent>
-        }
-        onClose={handleColumnsModalToggle}
-        actions={[
+          </Content>
+        </ModalHeader>
+        <ModalBody>
+          <DataList aria-label="Table column management" id="table-column-management" isCompact>
+            {columns.map((column, id) => (
+              <DataListItem key={`table-column-management-${column.id}`} aria-labelledby={`table-column-management-${column.id}`}>
+                <DataListItemRow>
+                  <DataListCheck
+                    aria-labelledby={`table-column-management-item-${column.id}`}
+                    isChecked={column.visible}
+                    name={`check-${column.id}`}
+                    id={`check-${column.id}`}
+                    onChange={_checked => updateColumnStatus(id, column)}
+                  />
+                  <DataListItemCells
+                    dataListCells={[
+                      <DataListCell id={`table-column-management-item-${column.id}`} key={`table-column-management-item-${column.id}`}>
+                        <label htmlFor={`check-${column.id}`}>{column.name}</label>
+                      </DataListCell>
+                    ]}
+                  />
+                </DataListItemRow>
+              </DataListItem>
+            ))}
+          </DataList>
+        </ModalBody>
+        <ModalFooter>
           <Button key="save" variant="primary" onClick={onSave}>
             Save
-          </Button>,
-          <Button key="close" variant="secondary" onClick={handleColumnsModalToggle}>
+          </Button>
+          <Button key="close" variant="link" onClick={handleColumnsModalToggle}>
             Cancel
           </Button>
-        ]}
-      >
-        <DataList aria-label="Table column management" id="table-column-management" isCompact>
-          {columns.map((column, id) => (
-            <DataListItem key={`table-column-management-${column.id}`} aria-labelledby={`table-column-management-${column.id}`}>
-              <DataListItemRow>
-                <DataListCheck
-                  aria-labelledby={`table-column-management-item-${column.id}`}
-                  checked={column.visible}
-                  name={`check-${column.id}`}
-                  id={`check-${column.id}`}
-                  onChange={checked => updateColumnStatus(id, column)}
-                />
-                <DataListItemCells
-                  dataListCells={[
-                    <DataListCell id={`table-column-management-item-${column.id}`} key={`table-column-management-item-${column.id}`}>
-                      <label htmlFor={`check-${column.id}`}>{column.name}</label>
-                    </DataListCell>
-                  ]}
-                />
-              </DataListItemRow>
-            </DataListItem>
-          ))}
-        </DataList>
+        </ModalFooter>
       </Modal>
-    </React.Fragment>
-  );
+
+      <FilterInformation showHelpModal={showHelpModal} setShowHelpModal={setShowHelpModal} />
+    </>
+  )
 }

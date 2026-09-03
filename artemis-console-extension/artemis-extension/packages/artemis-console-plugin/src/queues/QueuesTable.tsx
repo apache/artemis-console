@@ -14,126 +14,163 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React, { useContext, useState } from 'react'
-import { ActiveSort, ArtemisTable, Column, Filter } from '../table/ArtemisTable';
-import { artemisService } from '../artemis-service';
-import { IAction } from '@patternfly/react-table';
-import { Button, Modal, ModalVariant } from '@patternfly/react-core';
-import { SendMessage } from '../messages/SendMessage';
-import { Attributes, eventService, jolokiaService, Operations } from '@hawtio/react';
-import { QueueNavigate } from './QueuesView.js';
-import { ArtemisContext } from '../context';
-import { createQueueObjectName } from '../util/jmx';
-import { useNavigate } from 'react-router-dom';
-import { columnStorage } from '../artemis-preferences-service';
+import React, { useCallback, useContext, useMemo, useState } from 'react'
+import {
+  Button, Content, ContentVariants,
+  Modal,
+  ModalBody,
+  ModalFooter,
+  ModalHeader,
+  ModalVariant,
+  PageSection,
+  Title
+} from '@patternfly/react-core'
+import { type IAction } from '@patternfly/react-table'
+import { Remove2Icon } from '@patternfly/react-icons/dist/esm/icons/remove2-icon'
+import { RhUiCleanUpIcon } from '@patternfly/react-icons/dist/esm/icons/rh-ui-clean-up-icon'
+import { useLocation, useNavigate } from 'react-router'
 
-export type queuePermissions = {
-  canSend: boolean;
-  canBrowse: boolean;
-  canPurge: boolean;
-  canDelete: boolean;
+import { Attributes, eventService, jolokiaService, Operations } from '@hawtio/react'
+
+import { artemisService, Queue } from '../artemis-service'
+import { columnStorage } from '../artemis-preferences-service'
+import { artemisJMXPluginPath, artemisPluginPath } from '../globals'
+import { ArtemisContext } from '../context'
+import { createQueueObjectName } from '../util/jmx'
+import {
+  type ActiveSort,
+  ColumnType,
+  type Filter,
+  SortDirection,
+  type TableColumn,
+  type TableRow
+} from '../table/types'
+import { closeWithEscape, loadFilteredData } from '../table/utils'
+import { ArtemisTable, type ArtemisTableFilterProps } from '../table/ArtemisTable'
+import { SendMessage } from '../messages/SendMessage'
+
+/**
+ * Extension of the `ArtemisTableFilterProps` properties for Artemis tabs with `selectQueue`
+ * function dedicated for `<QueuesTable>`
+ */
+export type QueuesTableFilterProps = ArtemisTableFilterProps & {
+  /** A function to navigate from a row of queues table to a list of messages of the selected queue */
+  selectQueue: (queue: Queue) => void
 }
 
-export const QueuesTable: React.FunctionComponent<QueueNavigate> = navigate => {
-  const getAddressFilter = (row: any) => {
-    const filter: Filter = {
-      column: 'name',
-      operation: 'EQUALS',
-      input: row.address
-    }
-    return filter;
+// a filter for navigation to queue's address
+const getAddressFilter: (row: TableRow) => Filter = row => {
+  return {
+    tab: 'addresses',
+    column: 'name',
+    operation: 'EQUALS',
+    input: row.address
   }
+}
 
-  const getConsumersFilter = (row: any) => {
-    const filter: Filter = {
-      column: 'queue',
-      operation: 'EQUALS',
-      input: row.name
-    }
-    return filter;
+// a filter to navigate to queue's consumers
+const getConsumersFilter: (row: TableRow) => Filter = row => {
+  return {
+    tab: 'consumers',
+    column: 'queue',
+    operation: 'EQUALS',
+    input: row.name
   }
+}
 
-  const messageView = (row: any) => {
-    navigate.selectQueue(row.name, row.address, row.routingType);
-  }
+// A little difference from other tabs - not referring to `allColumns`, which here is memoized inside the component
+// so we have to use explicit column names
+const initialFilter: Filter = { tab: 'queues', column: 'name', operation: 'CONTAINS', input: '' }
+const initialSort: ActiveSort = { column: 'name', order: SortDirection.ASCENDING }
 
-  const allColumns: Column[] = [
-    { id: 'id', name: 'ID', visible: false, sortable: true, filterable: true },
-    { id: 'name', name: 'Name', visible: true, sortable: true, filterable: true, link: messageView },
-    { id: 'address', name: 'Address', visible: true, sortable: true, filterable: true, filter: getAddressFilter, filterTab: 5},
-    { id: 'routingType', name: 'Routing Type', visible: true, sortable: true, filterable: true },
-    { id: 'filter', name: 'Filter', visible: true, sortable: true, filterable: true },
-    { id: 'durable', name: 'Durable', visible: true, sortable: true, filterable: true },
-    { id: 'maxConsumers', name: 'Max Consumers', visible: true, sortable: true, filterable: true },
-    { id: 'purgeOnNoConsumers', name: 'Purge On No Consumers', visible: true, sortable: true, filterable: true },
-    { id: 'consumerCount', name: 'Consumer Count', visible: true, sortable: true, filterable: true, filter: getConsumersFilter, filterTab: 4},
-    { id: 'messageCount', name: 'Message Count', visible: true, sortable: true, filterable: true, link: messageView},
-    { id: 'paused', name: 'Paused', visible: false, sortable: true, filterable: true },
-    { id: 'persistedPause', name: 'Persisted Pause', visible: false, sortable: true, filterable: true },
-    { id: 'temporary', name: 'Temporary', visible: false, sortable: true, filterable: true },
-    { id: 'autoCreated', name: 'Auto Created', visible: false, sortable: true, filterable: true },
-    { id: 'user', name: 'User', visible: false, sortable: true, filterable: true },
-    { id: 'messagesAdded', name: 'Total Messages Added', visible: false, sortable: true, filterable: true },
-    { id: 'messagesAcked', name: 'Total Messages Acked', visible: false, sortable: true, filterable: true },
-    { id: 'deliveringCount', name: 'Delivering Count', visible: false, sortable: true, filterable: true },
-    { id: 'messagesKilled', name: 'Messages Killed', visible: false, sortable: true, filterable: true },
-    { id: 'directDeliver', name: 'Direct Deliver', visible: false, sortable: true, filterable: true },
-    { id: 'exclusive', name: 'Exclusive', visible: false, sortable: true, filterable: true },
-    { id: 'lastValue', name: 'Last Value', visible: false, sortable: true, filterable: true },
-    { id: 'lastValueKey', name: 'Last Value Key', visible: false, sortable: true, filterable: true },
-    { id: 'scheduledCount', name: 'Scheduled Count', visible: false, sortable: true, filterable: true },
-    { id: 'groupRebalance', name: 'Group Rebalance', visible: false, sortable: true, filterable: true },
-    { id: 'groupRebalancePauseDispatch', name: 'Group Rebalance Pause Dispatch', visible: false, sortable: true, filterable: true },
-    { id: 'groupBuckets', name: 'Group Buckets', visible: false, sortable: true, filterable: true },
-    { id: 'groupFirstKey', name: 'Group First Key', visible: false, sortable: true, filterable: true },
-    { id: 'enabled', name: 'Queue Enabled', visible: false, sortable: true, filterable: true },
-    { id: 'ringSize', name: 'Ring Size', visible: false, sortable: true, filterable: true },
-    { id: 'consumersBeforeDispatch', name: 'Consumers Before Dispatch', visible: false, sortable: true, filterable: true },
-    { id: 'delayBeforeDispatch', name: 'Delay Before Dispatch', visible: false, sortable: true, filterable: true },
-    { id: 'autoDelete', name: 'Auto Delete', visible: false, sortable: true, filterable: true }
-  ];
+export const QueuesTable: React.FunctionComponent<QueuesTableFilterProps> = props => {
 
-  const listQueues = async (page: number, perPage: number, activeSort: ActiveSort, filter: Filter): Promise<any> => {
-    const response = await artemisService.getQueues(page, perPage, activeSort, filter).catch(error => {
-      eventService.notify({ type: 'warning', message: jolokiaService.errorMessage(error)})
-      return JSON.stringify({ data: [], count: 0 })
-    })
-    const data = JSON.parse(response);
-    return data;
-  }
+  const navigate = useNavigate()
+  const { search } = useLocation()
 
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [showPurgeDialog, setShowPurgeDialog] = useState(false);
-  const [showSendDialog, setShowSendDialog] = useState(false);
-  const [queue, setQueue] = useState("");
-  const [address, setAddress] = useState("");
-  const [routingType, setRoutingType] = useState("");
-  const [queueToPurgeAddress, setQueueToPurgeAddress] = useState("");
-  const [queueToPurgeRoutingType, setQueueToPurgeRoutingType] = useState("");
-  const [showAttributesDialog, setShowAttributesDialog] = useState(false);
-  const [showOperationsDialog, setShowOperationsDialog] = useState(false);
-  const routenavigate = useNavigate();
-  const { brokerNode, findAndSelectNode } = useContext(ArtemisContext);
+  // a function to show a list messages of a queue. Actual navigation function
+  // is provided by the component that displays this QueuesTable (which is QueuesView)
+  const messageView: (row: TableRow) => void = useCallback(row => {
+    props.selectQueue({ name: row.name, address: row.address, routingType: row.routingType })
+    navigate({ pathname: `${artemisPluginPath}/queues/messages`, search })
+  }, [props.selectQueue])
 
-  const [loadData, setLoadData] = useState(0);
+  // for queues, all the values come (from the broker in JSON) as Strings, but lots of these are numbers and booleans
+  // Note: for <QueuesTable> allColumns can't be defined at module level, because of the link property which uses
+  // `props.selectQueue`
+  const allColumns: TableColumn[] = useMemo(() => [
+    { id: 'id', type: ColumnType.NUMBER, name: 'ID', visible: false, sortable: true, filterable: true },
+    { id: 'name', type: ColumnType.STRING, name: 'Name', visible: true, sortable: true, filterable: true, link: messageView },
+    { id: 'address', type: ColumnType.STRING, name: 'Address', visible: true, sortable: true, filterable: true, filter: getAddressFilter },
+    { id: 'routingType', type: ColumnType.STRING, name: 'Routing Type', visible: true, sortable: true, filterable: true },
+    { id: 'filter', type: ColumnType.STRING, name: 'Filter', visible: true, sortable: true, filterable: true },
+    { id: 'durable', type: ColumnType.BOOLEAN, name: 'Durable', visible: true, sortable: true, filterable: true },
+    { id: 'maxConsumers', type: ColumnType.NUMBER, name: 'Max Consumers', visible: true, sortable: true, filterable: true },
+    { id: 'purgeOnNoConsumers', type: ColumnType.BOOLEAN, name: 'Purge On No Consumers', visible: true, sortable: true, filterable: true },
+    { id: 'consumerCount', type: ColumnType.NUMBER, name: 'Consumer Count', visible: true, sortable: true, filterable: true, filter: getConsumersFilter },
+    { id: 'messageCount', type: ColumnType.NUMBER, name: 'Message Count', visible: true, sortable: true, filterable: true, link: messageView },
+    { id: 'paused', type: ColumnType.BOOLEAN, name: 'Paused', visible: false, sortable: true, filterable: true },
+    { id: 'persistedPause', type: ColumnType.BOOLEAN, name: 'Persisted Pause', visible: false, sortable: true, filterable: true },
+    { id: 'temporary', type: ColumnType.BOOLEAN, name: 'Temporary', visible: false, sortable: true, filterable: true },
+    { id: 'autoCreated', type: ColumnType.BOOLEAN, name: 'Auto Created', visible: false, sortable: true, filterable: true },
+    { id: 'user', type: ColumnType.STRING, name: 'User', visible: false, sortable: true, filterable: true },
+    { id: 'messagesAdded', type: ColumnType.NUMBER, name: 'Total Messages Added', visible: false, sortable: true, filterable: true },
+    { id: 'messagesAcked', type: ColumnType.NUMBER, name: 'Total Messages Acknowledged', visible: false, sortable: true, filterable: true },
+    { id: 'messagesExpired', type: ColumnType.NUMBER, name: 'Total Messages Expired', visible: false, sortable: true, filterable: true },
+    { id: 'deliveringCount', type: ColumnType.NUMBER, name: 'Delivering Count', visible: false, sortable: true, filterable: true },
+    { id: 'messagesKilled', type: ColumnType.NUMBER, name: 'Messages Killed', visible: false, sortable: true, filterable: true },
+    { id: 'directDeliver', type: ColumnType.BOOLEAN, name: 'Direct Deliver', visible: false, sortable: true, filterable: true },
+    { id: 'exclusive', type: ColumnType.BOOLEAN, name: 'Exclusive', visible: false, sortable: true, filterable: true },
+    { id: 'lastValue', type: ColumnType.BOOLEAN, name: 'Last Value', visible: false, sortable: true, filterable: true },
+    { id: 'lastValueKey', type: ColumnType.STRING, name: 'Last Value Key', visible: false, sortable: true, filterable: true },
+    { id: 'scheduledCount', type: ColumnType.NUMBER, name: 'Scheduled Count', visible: false, sortable: true, filterable: true },
+    { id: 'groupRebalance', type: ColumnType.BOOLEAN, name: 'Group Rebalance', visible: false, sortable: true, filterable: true },
+    { id: 'groupRebalancePauseDispatch', type: ColumnType.BOOLEAN, name: 'Group Rebalance Pause Dispatch', visible: false, sortable: true, filterable: true },
+    { id: 'groupBuckets', type: ColumnType.NUMBER, name: 'Group Buckets', visible: false, sortable: true, filterable: true },
+    { id: 'groupFirstKey', type: ColumnType.STRING, name: 'Group First Key', visible: false, sortable: true, filterable: true },
+    { id: 'enabled', type: ColumnType.BOOLEAN, name: 'Queue Enabled', visible: false, sortable: true, filterable: true },
+    { id: 'ringSize', type: ColumnType.NUMBER, name: 'Ring Size', visible: false, sortable: true, filterable: true },
+    { id: 'consumersBeforeDispatch', type: ColumnType.NUMBER, name: 'Consumers Before Dispatch', visible: false, sortable: true, filterable: true },
+    { id: 'delayBeforeDispatch', type: ColumnType.NUMBER, name: 'Delay Before Dispatch', visible: false, sortable: true, filterable: true },
+    { id: 'autoDelete', type: ColumnType.BOOLEAN, name: 'Auto Delete', visible: false, sortable: true, filterable: true },
+    { id: 'internalQueue', type: ColumnType.BOOLEAN, name: 'Internal', visible: false, sortable: true, filterable: true }
+  ], [messageView])
+
+  const listQueues = useCallback(async (page: number, perPage: number, sort: ActiveSort | undefined, filters: Filter[]): Promise<any> => {
+    return loadFilteredData('queues', artemisService.getQueues.bind(artemisService), page, perPage, sort, filters)
+  }, [])
+
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [showPurgeDialog, setShowPurgeDialog] = useState(false)
+  const [showSendDialog, setShowSendDialog] = useState(false)
+  const [queue, setQueue] = useState('')
+  const [address, setAddress] = useState("")
+  const [routingType, setRoutingType] = useState("")
+  const [queueToPurgeAddress, setQueueToPurgeAddress] = useState("")
+  const [queueToPurgeRoutingType, setQueueToPurgeRoutingType] = useState("")
+  const [showAttributesDialog, setShowAttributesDialog] = useState(false)
+  const [showOperationsDialog, setShowOperationsDialog] = useState(false)
+  const routeNavigate = useNavigate()
+  const { brokerNode, selectedNode, findAndSelectNode } = useContext(ArtemisContext)
+  const [refreshCount, setRefreshCount] = useState(0)
 
   const closeDeleteDialog = () => {
-    setShowDeleteDialog(false);
-  };
+    setShowDeleteDialog(false)
+  }
 
   const closePurgeDialog = () => {
-    setShowPurgeDialog(false);
-  };
+    setShowPurgeDialog(false)
+  }
 
   const closeSendDialog = () => {
-    setShowSendDialog(false);
-  };
+    setShowSendDialog(false)
+  }
 
   const deleteQueue = async (name: string) => {
     await artemisService.deleteQueue(name)
-      .then((value: unknown) => {
-        setShowDeleteDialog(false);
-        setLoadData(loadData + 1);
+      .then((_value: unknown) => {
+        setShowDeleteDialog(false)
+        setRefreshCount(c => c + 1)
         eventService.notify({
           type: 'success',
           message: 'Queue Deleted',
@@ -141,16 +178,16 @@ export const QueuesTable: React.FunctionComponent<QueueNavigate> = navigate => {
         })
       })
       .catch((error) => {
-        setShowDeleteDialog(false);
-        eventService.notify({type: 'danger', message: 'Queue Not Deleted: ' + jolokiaService.errorMessage(error) })
-      });
-  };
+        setShowDeleteDialog(false)
+        eventService.notify({ type: 'danger', message: 'Queue Not Deleted: ' + jolokiaService.errorMessage(error) })
+      })
+  }
 
   const purgeQueue = (name: string, address: string, routingType: string) => {
     artemisService.purgeQueue(name, address, routingType)
       .then(() => {
-        setShowPurgeDialog(false);
-        setLoadData(loadData + 1);
+        setShowPurgeDialog(false)
+        setRefreshCount(c => c + 1)
         eventService.notify({
           type: 'success',
           message: 'Queue Purged',
@@ -158,191 +195,226 @@ export const QueuesTable: React.FunctionComponent<QueueNavigate> = navigate => {
         })
       })
       .catch((error) => {
-        setShowPurgeDialog(false);
-        eventService.notify({type: 'danger', message: 'Queue Not Purged: ' + jolokiaService.errorMessage(error) })
-      });
-  };
+        setShowPurgeDialog(false)
+        eventService.notify({ type: 'danger', message: 'Queue Not Purged: ' + jolokiaService.errorMessage(error) })
+      })
+  }
 
   const showInJmxAction = (rowName: string, rowAddress: string, rowRoutingType: string): IAction => ({
     title: "Show in Artemis JMX",
     onClick: async () => {
-      setAddress(rowName);
-      const brokerObjectName = await artemisService.getBrokerObjectName();
-      const queueObjectName = createQueueObjectName(brokerObjectName, rowAddress, rowRoutingType, rowName);
-      findAndSelectNode(queueObjectName, rowName);
-      routenavigate("/treeartemisJMX");
+      setAddress(rowName)
+      const brokerObjectName = await artemisService.getBrokerObjectName()
+      const queueObjectName = createQueueObjectName(brokerObjectName, rowAddress, rowRoutingType, rowName)
+      findAndSelectNode(queueObjectName, rowName)
+      routeNavigate(artemisJMXPluginPath)
     }
-  });
+  })
 
   const attributesAction = (rowName: string, rowAddress: string, rowRoutingType: string) => ({
     title: "Attributes",
     onClick: async () => {
-      setAddress(rowName);
-      const brokerObjectName = await artemisService.getBrokerObjectName();
+      setAddress(rowName)
+      const brokerObjectName = await artemisService.getBrokerObjectName()
       const queueObjectName = createQueueObjectName(
         brokerObjectName,
         rowAddress,
         rowRoutingType,
         rowName
-      );
-      findAndSelectNode(queueObjectName, rowName);
-      setShowAttributesDialog(true);
+      )
+      findAndSelectNode(queueObjectName, rowName)
+      setShowAttributesDialog(true)
     }
-  });
+  })
 
   const operationsAction = (rowName: string, rowAddress: string, rowRoutingType: string): IAction => ({
     title: "Operations",
     onClick: async () => {
-      setAddress(rowName);
-      const brokerObjectName = await artemisService.getBrokerObjectName();
+      setAddress(rowName)
+      const brokerObjectName = await artemisService.getBrokerObjectName()
       const queueObjectName = createQueueObjectName(
         brokerObjectName,
         rowAddress,
         rowRoutingType,
         rowName
-      );
-      findAndSelectNode(queueObjectName, rowName);
-      setShowOperationsDialog(true);
+      )
+      findAndSelectNode(queueObjectName, rowName)
+      setShowOperationsDialog(true)
     }
-  });
+  })
 
-  const deleteAction = (rowname: string): IAction => ({
-    title: "Delete",
+  const deleteAction = (rowName: string): IAction => ({
+    title: (<><Remove2Icon /> Delete</>),
     onClick: () => {
-      setQueue(rowname);
-      setShowDeleteDialog(true);
+      setQueue(rowName)
+      setShowDeleteDialog(true)
     }
-  });
+  })
 
   const sendMessageAction = (rowName: string, rowAddress: string, rowRoutingType: string): IAction => ({
     title: "Send Message",
     onClick: () => {
-      setQueue(rowName);
-      setAddress(rowAddress);
-      setRoutingType(rowRoutingType);
-      setShowSendDialog(true);
+      setQueue(rowName)
+      setAddress(rowAddress)
+      setRoutingType(rowRoutingType)
+      setShowSendDialog(true)
     }
-  });
+  })
 
   const purgeAction = (rowName: string, rowAddress: string, rowRoutingType: string): IAction => ({
-    title: "Purge",
+    title: (<><RhUiCleanUpIcon /> Purge</>),
     onClick: () => {
-      setQueue(rowName);
-      setQueueToPurgeAddress(rowAddress);
-      setQueueToPurgeRoutingType(rowRoutingType);
-      setShowPurgeDialog(true);
+      setQueue(rowName)
+      setQueueToPurgeAddress(rowAddress)
+      setQueueToPurgeRoutingType(rowRoutingType)
+      setShowPurgeDialog(true)
     }
-  });
+  })
 
-  const browseAction = (rowName: string, rowAddress: string, rowRoutingType: string): IAction => ({
+  const browseAction = (row: TableRow): IAction => ({
     title: "Browse Messages",
     onClick: () => {
-      navigate.selectQueue(rowName, rowAddress, rowRoutingType);
+      messageView(row)
     }
-  });
+  })
 
-  const permissions = artemisService.getQueuePermissions(brokerNode);
+  const permissions = artemisService.getQueuePermissions(brokerNode)
 
-  const getRowActions = (row: any): IAction[] => {
-    const rowName = row.name;
-    const rowAddress = row.address;
-    const rowRoutingType = row.routingType;
-    var rowPerms = permissions[rowName];
-    if(rowPerms == undefined) {
-      //it may have a client id with /. in the name which is delimeted in the mbean name
-      rowPerms = permissions[row.name.replaceAll('\\', '\\\\')];
+  const getRowActions = (row: TableRow): IAction[] => {
+    const rowName = row.name
+    const rowAddress = row.address
+    const rowRoutingType = row.routingType
+    let rowPerms = permissions[rowName]
+    if (rowPerms == undefined) {
+      // it may have a client id with /. in the name which is delimited in the mbean name
+      rowPerms = permissions[row.name.replaceAll('\\', '\\\\')]
     }
     const actions: IAction[] = [
       showInJmxAction(rowName, rowAddress, rowRoutingType),
       attributesAction(rowName, rowAddress, rowRoutingType),
-      operationsAction(rowName, rowAddress, rowRoutingType)
-    ];
+      operationsAction(rowName, rowAddress, rowRoutingType),
+    ]
 
-  if (rowPerms?.canSend) {
-    actions.push(sendMessageAction(rowName, rowAddress, rowRoutingType));
-  }
-  if (rowPerms?.canPurge) {
-    actions.push(purgeAction(rowName, rowAddress, rowRoutingType));
-  }
-  if (rowPerms?.canBrowse) {
-    actions.push(browseAction(rowName, rowAddress, rowRoutingType));
-  }
-  if (rowPerms?.canDelete) {
-    actions.push(deleteAction(rowName));
-  }
+    if (rowPerms?.canSend || rowPerms?.canBrowse || rowPerms?.canPurge || rowPerms?.canDelete) {
+      actions.push({ isSeparator: true })
+    }
 
-    return actions;
+    if (rowPerms?.canSend) {
+      actions.push(sendMessageAction(rowName, rowAddress, rowRoutingType))
+    }
+    if (rowPerms?.canBrowse) {
+      actions.push(browseAction(row))
+    }
+    if (rowPerms?.canPurge) {
+      actions.push(purgeAction(rowName, rowAddress, rowRoutingType))
+    }
+    if (rowPerms?.canDelete) {
+      actions.push(deleteAction(rowName))
+    }
 
-  };
+    return actions
+  }
 
   return (
-    <><ArtemisTable allColumns={allColumns} getData={listQueues} getRowActions={getRowActions} loadData={loadData} storageColumnLocation={columnStorage.queues} navigate={navigate.search} filter={navigate.filter} /><Modal
-      aria-label='queue-delete-modal'
-      variant={ModalVariant.medium}
-      title="Delete Queue?"
-      isOpen={showDeleteDialog}
-      onClose={() => setShowDeleteDialog(false)}
-      actions={[
-        <Button key="confirm" variant="primary" onClick={() => deleteQueue(queue)}>
-          Confirm
-        </Button>,
-        <Button key="cancel" variant="secondary" onClick={closeDeleteDialog}>
-          Cancel
-        </Button>
-      ]}><p>You are about to delete queue <b>{queue}</b>.</p>
-      <p>This operation cannot be undone.</p>
-    </Modal>
-    <Modal
-        aria-label='attributes-modal'
-        variant={ModalVariant.medium}
-        isOpen={showAttributesDialog}
-        onClose={() => setShowAttributesDialog(false)}
-        actions={[
-          <Button key="close" variant="primary" onClick={() => setShowAttributesDialog(false)}>
-            Close
+    <>
+      <ArtemisTable allColumns={allColumns}
+                    initialFilter={initialFilter}
+                    initialSort={initialSort}
+                    getData={listQueues}
+                    storageColumnLocation={columnStorage.queues}
+                    getRowActions={getRowActions}
+                    refreshCount={refreshCount}
+                    switchTab={props.switchTab}
+                    filters={props.filters}
+                    editGlobalFilter={props.editGlobalFilter} />
+
+      <Modal aria-label='queue-delete-modal' variant={ModalVariant.medium} isOpen={showDeleteDialog}
+             onClose={() => closeDeleteDialog()}
+             onKeyDown={closeWithEscape(closeDeleteDialog)}>
+        <ModalHeader title='Delete Queue?' titleIconVariant='warning' />
+        <ModalBody>
+          <Content component={ContentVariants.p}>
+            You are about to delete queue <b>{queue}</b>.
+          </Content>
+          <Content component={ContentVariants.p}>
+            This operation cannot be undone.
+          </Content>
+        </ModalBody>
+        <ModalFooter>
+          <Button key="delete" variant="danger" onClick={() => deleteQueue(queue)}>
+            Confirm
           </Button>
-        ]}>
-        <Attributes />
-      </Modal>
-      <Modal
-        aria-label='operations-modal'
-        variant={ModalVariant.medium}
-        isOpen={showOperationsDialog}
-        onClose={() => setShowOperationsDialog(false)}
-        actions={[
-          <Button key="close" variant="primary" onClick={() => setShowOperationsDialog(false)}>
-            Close
-          </Button>
-        ]}>
-        <Operations />
-      </Modal>
-    <Modal
-      aria-label='queue-purge-modal'
-      variant={ModalVariant.medium}
-      title="Purge Queue?"
-      isOpen={showPurgeDialog}
-      onClose={() => setShowPurgeDialog(false)}
-      actions={[
-        <Button key="confirm" variant="primary" onClick={() => purgeQueue(queue, queueToPurgeAddress, queueToPurgeRoutingType)}>
-          Confirm
-        </Button>,
-        <Button key="cancel" variant="secondary" onClick={closePurgeDialog}>
-          Cancel
-        </Button>
-      ]}><p>You are about to remove all messages from queue <b>{queue}</b>.</p>
-        <p>This operation cannot be undone.</p>
-      </Modal>
-      <Modal
-        aria-label='queue-send-modal'
-        variant={ModalVariant.medium}
-        isOpen={showSendDialog}
-        onClose={() => setShowSendDialog(false)}
-        actions={[
-          <Button key="close" variant="secondary" onClick={closeSendDialog}>
+          <Button key="cancel" variant="link" onClick={closeDeleteDialog}>
             Cancel
           </Button>
-        ]}>
-        <SendMessage address={address} queue={queue} routingType={routingType} isAddress={false} />
-      </Modal></>
+        </ModalFooter>
+      </Modal>
+
+      <Modal id='attributes-modal' aria-label='attributes-modal' variant={ModalVariant.large} isOpen={showAttributesDialog}
+             onClose={() => setShowAttributesDialog(false)}
+             onKeyDown={closeWithEscape(setShowAttributesDialog)}>
+        <ModalHeader>
+          <Title headingLevel='h1' size='lg'>JMX Attributes</Title>
+          <Title headingLevel='h2' size='md'>{selectedNode?.objectName}</Title>
+        </ModalHeader>
+        <ModalBody>
+          <PageSection hasBodyWrapper={false} hasOverflowScroll>
+            <Attributes />
+          </PageSection>
+        </ModalBody>
+        <ModalFooter>
+          <Button key='close' variant='primary' onClick={() => setShowAttributesDialog(false)}>
+            Close
+          </Button>
+        </ModalFooter>
+      </Modal>
+
+      <Modal id='operations-modal' aria-label='operations-modal' variant={ModalVariant.large} isOpen={showOperationsDialog}
+             onClose={() => setShowOperationsDialog(false)}
+             onKeyDown={closeWithEscape(setShowOperationsDialog)}>
+        <ModalHeader>
+          <Title headingLevel='h1' size='lg'>JMX Operations</Title>
+          <Title headingLevel='h2' size='md'>{selectedNode?.objectName}</Title>
+        </ModalHeader>
+        <ModalBody>
+          <PageSection hasBodyWrapper={false} hasOverflowScroll>
+            <Operations />
+          </PageSection>
+        </ModalBody>
+        <ModalFooter>
+          <Button key='close' variant='primary' onClick={() => setShowOperationsDialog(false)}>
+            Close
+          </Button>
+        </ModalFooter>
+      </Modal>
+
+      <Modal aria-label='queue-purge-modal' variant={ModalVariant.medium} isOpen={showPurgeDialog}
+             onClose={closePurgeDialog}
+             onKeyDown={closeWithEscape(setShowPurgeDialog)}>
+        <ModalHeader title='Purge Queue?' titleIconVariant='warning' />
+        <ModalBody>
+          <Content component={ContentVariants.p}>
+            You are about to remove all messages from queue: <b>{queue}</b>.
+          </Content>
+          <Content component={ContentVariants.p}>
+            This operation cannot be undone.
+          </Content>
+        </ModalBody>
+        <ModalFooter>
+          <Button key="confirm" variant="danger" onClick={() => purgeQueue(queue, queueToPurgeAddress, queueToPurgeRoutingType)}>
+            Confirm
+          </Button>
+          <Button key="cancel" variant="link" onClick={closePurgeDialog}>
+            Cancel
+          </Button>
+        </ModalFooter>
+      </Modal>
+
+      {/* Explicitly without onClose and onKeyDown, so user doesn't close the dialog by accident with Escape */}
+      <Modal aria-label='send-modal' variant={ModalVariant.medium} isOpen={showSendDialog}>
+        <SendMessage address={address} queue={queue} routingType={routingType} isAddress={false}
+                     onClose={closeSendDialog} onSend={() => setRefreshCount(c => c + 1)} />
+      </Modal>
+    </>
   )
 }

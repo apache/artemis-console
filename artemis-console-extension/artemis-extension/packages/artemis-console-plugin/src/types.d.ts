@@ -15,3 +15,4 @@
  * limitations under the License.
  */
 declare module "*.md"
+declare module "*.css"
