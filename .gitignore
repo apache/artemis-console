@@ -19,6 +19,9 @@ artemis-console-extension/artemis-extension/node/**/*
 artemis-console-extension/artemis-extension/packages/artemis-console-plugin/node_modules/
 artemis-console-extension/artemis-extension/app/node_modules/**/*
 
+# generated SBOM
+artemis-console-extension/artemis-extension/bom.cdx.json
+
 # yarn (zero-installs)
 artemis-console-extension/artemis-extension/.yarn/install-state.gz
 .yarn/**
