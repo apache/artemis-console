@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React, { useContext, useEffect, useState } from 'react'
+import React, { useContext, useEffect, useImperativeHandle, useRef, useState, forwardRef } from 'react'
 import { Column } from '../table/ArtemisTable';
 import { artemisService } from '../artemis-service';
 import { Toolbar, ToolbarContent, ToolbarItem, Text, SearchInput, Button, PaginationVariant, Pagination, DataList, DataListCell, DataListCheck, DataListItem, DataListItemCells, DataListItemRow, Modal, TextContent, Icon, ModalVariant } from '@patternfly/react-core';
@@ -34,17 +34,60 @@ export type MessageProps = {
   address: string,
   queue: string,
   routingType: string,
-  selectMessage?: Function,
+  selectMessage?: (message: any, globalIndex: number, totalCount: number) => void,
+  onTotalCountChange?: (count: number) => void,
   back?: Function
 }
 
+export type MessagesTableHandle = {
+  fetchMessageAt: (globalIndex: number) => Promise<{ message: Message | null; totalCount: number }>;
+}
 
+export const MessagesTable = forwardRef<MessagesTableHandle, MessageProps>((props, ref) => {
+  useImperativeHandle(ref, () => ({ fetchMessageAt }));
 
-export const MessagesTable: React.FunctionComponent<MessageProps> = props => {
+  const fetchMessageAt = async (globalIndex: number): Promise<{ message: Message | null; totalCount: number }> => {
+    const targetPage = Math.floor(globalIndex / perPage) + 1;
+    const indexInPage = globalIndex % perPage;
 
+    if (targetPage === page) {
+      return { message: rowsRef.current[indexInPage] ?? null, totalCount: resultsSizeRef.current };
+    }
+
+    const cached = pageCacheRef.current.get(targetPage);
+    if (cached) {
+      return { message: cached[indexInPage] ?? null, totalCount: resultsSizeRef.current };
+    }
+
+    try {
+      const brokerObjectname = await artemisService.getBrokerObjectName();
+      const queueMBean: string = createQueueObjectName(brokerObjectname, props.address, props.routingType, props.queue);
+      const response: any = await artemisService.getMessages(queueMBean, targetPage, perPage, filter);
+      const data = response?.data ?? [];
+      const totalCount = response?.count ?? resultsSizeRef.current;
+
+      if (totalCount !== resultsSizeRef.current) {
+        // count shifted (e.g. messages deleted elsewhere) — cached pages are no longer trustworthy
+        pageCacheRef.current.clear();
+        resultsSizeRef.current = totalCount;
+        setresultsSize(totalCount);
+        props.onTotalCountChange?.(totalCount);
+      } else {
+        pageCacheRef.current.set(targetPage, data);
+      }
+
+      return { message: (data[indexInPage] as Message) ?? null, totalCount };
+    } catch (error) {
+      eventService.notify({ type: 'warning', message: jolokiaService.errorMessage(error) });
+      return { message: null, totalCount: resultsSizeRef.current };
+    }
+  };
 
   const messageView = (row: any) => {
-    if (props.selectMessage) { props.selectMessage(row); }
+    const currentRows = rowsRef.current;
+    const indexInPage = currentRows.findIndex((r: any) => r.messageID === row.messageID);
+    const globalIndex = (page - 1) * perPage + indexInPage;
+    if (props.selectMessage) { props.selectMessage(row, globalIndex, resultsSizeRef.current); }
   }
 
   const allColumns: Column[] = [
@@ -64,7 +107,7 @@ export const MessagesTable: React.FunctionComponent<MessageProps> = props => {
   const [filter, setFilter] = useState("");
   const [inputValue, setInputValue] = useState('');
   const [page, setPage] = useState(1);
-  const [rows, setRows] = useState([])
+  const [rows, setRows] = useState<any[]>([])
   const [perPage, setPerPage] = useState(10);
   const [columns, setColumns] = useState(allColumns);
   const [columnsLoaded, setColumnsLoaded] = useState(false);
@@ -77,25 +120,41 @@ export const MessagesTable: React.FunctionComponent<MessageProps> = props => {
   const [showCopyMessagesModal, setShowCopyMessagesModal] = useState(false);
   const [showRetryMessagesModal, setShowRetryMessagesModal] = useState(false);
   const [showResendModal, setShowResendModal] = useState(false);
-  const [ resendMessage, setResendMessage] = useState<Message | undefined>();
+  const [resendMessage, setResendMessage] = useState<Message | undefined>();
 
   const { brokerNode } = useContext(ArtemisContext);
 
+  const rowsRef = useRef<any[]>([]);
+  const resultsSizeRef = useRef<number>(0);
+  const pageCacheRef = useRef<Map<number, any[]>>(new Map());
+
   useEffect(() => {
-    const listData = async () => {
-      listMessages().then((data) => {
-        setRows(data.data);
-        setresultsSize(data.count);
-      }).catch((error) => {
-        eventService.notify({type: 'warning', message: jolokiaService.errorMessage(error) })
-      })
-    }
+    rowsRef.current = rows;
+  }, [rows]);
+  useEffect(() => {
+    resultsSizeRef.current = resultsSize;
+  }, [resultsSize]);
+  useEffect(() => {
+    pageCacheRef.current.clear();
+  }, [props.address, props.routingType, props.queue, perPage, filter]);
+
+  useEffect(() => {
     const listMessages = async (): Promise<any> => {
       const brokerObjectname = await artemisService.getBrokerObjectName();
       const queueMBean: string = createQueueObjectName(brokerObjectname, props.address, props.routingType, props.queue);
       const response = await artemisService.getMessages(queueMBean, page, perPage, filter);
       return response;
     }
+    const listData = async () => {
+      listMessages().then((data) => {
+        setRows(data.data);
+        setresultsSize(data.count);
+        props.onTotalCountChange?.(data.count);
+      }).catch((error) => {
+        eventService.notify({type: 'warning', message: jolokiaService.errorMessage(error) })
+      })
+    }
+
     setPerPage(artemisPreferencesService.loadTablePageSize(columnStorage.messages));
     if (!columnsLoaded) {
       const updatedColumns: Column[] = artemisPreferencesService.loadColumnPreferences(columnStorage.messages, allColumns);
@@ -103,7 +162,6 @@ export const MessagesTable: React.FunctionComponent<MessageProps> = props => {
       setColumnsLoaded(true);
     }
     listData();
-
   }, [props.address, props.routingType, props.queue, page, perPage, filter, selectedMessages])
 
   const handleSetPage = (_event: React.MouseEvent | React.KeyboardEvent | MouseEvent, newPage: number) => {
@@ -131,6 +189,8 @@ export const MessagesTable: React.FunctionComponent<MessageProps> = props => {
   };
 
   const getRowActions = (row: any): IAction[] => {
+  const indexInPage = rows.findIndex((r: any) => r.messageID === row.messageID);
+  const globalIndex = (page - 1) * perPage + indexInPage;
     return [
       {
         title: 'Delete',
@@ -144,7 +204,7 @@ export const MessagesTable: React.FunctionComponent<MessageProps> = props => {
         title: 'View',
         id: 'message-dropdown-view',
         onClick: () => {
-          if (props.selectMessage) { props.selectMessage(row); }
+          if (props.selectMessage) { props.selectMessage(row, globalIndex, resultsSizeRef.current); }
         }
       },
       {
@@ -392,6 +452,7 @@ export const MessagesTable: React.FunctionComponent<MessageProps> = props => {
         <Thead>
           <Tr >
             <Th
+            aria-label="Select all"
             select={{
               onSelect: (_event, isSelecting) => selectAllMessages(isSelecting),
               isSelected: areAllMessagesSelected
@@ -627,4 +688,4 @@ export const MessagesTable: React.FunctionComponent<MessageProps> = props => {
       </Modal>
     </React.Fragment>
   );
-}
+})
