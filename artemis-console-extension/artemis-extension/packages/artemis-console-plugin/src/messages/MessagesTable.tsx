@@ -39,9 +39,7 @@ export type MessageProps = {
 }
 
 
-
 export const MessagesTable: React.FunctionComponent<MessageProps> = props => {
-
 
   const messageView = (row: any) => {
     if (props.selectMessage) { props.selectMessage(row); }
@@ -61,11 +59,22 @@ export const MessagesTable: React.FunctionComponent<MessageProps> = props => {
     { id: 'validatedUser', name: 'Validated User', visible: false, sortable: true, filterable: false },
     { id: 'originalQueue', name: 'Original Queue', visible: false, sortable: true, filterable: false },
   ];
+
+  const initialPerPage = () => {
+    if (columnStorage.messages) {
+      const savedPerPage = artemisPreferencesService.loadTablePageSize(
+        columnStorage.messages
+      );
+      return savedPerPage ?? 10;
+    }
+    return 10;
+  }
+
   const [filter, setFilter] = useState("");
   const [inputValue, setInputValue] = useState('');
   const [page, setPage] = useState(1);
   const [rows, setRows] = useState([])
-  const [perPage, setPerPage] = useState(10);
+  const [perPage, setPerPage] = useState(initialPerPage);
   const [columns, setColumns] = useState(allColumns);
   const [columnsLoaded, setColumnsLoaded] = useState(false);
   const [columnsModalOpen, setColumnsModalOpen] = useState(false);
