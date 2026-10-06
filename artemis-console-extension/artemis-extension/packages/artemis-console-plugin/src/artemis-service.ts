@@ -834,7 +834,7 @@ class ArtemisService {
                     canSend: node.hasInvokeRights(SEND_MESSAGE_SIG) ?? false,
                     canPurge: node.hasInvokeRights(REMOVE_ALL_MESSAGES_SIG) ?? false,
                     canBrowse: node.hasInvokeRights(BROWSE_SIG) ?? false,
-                    canDelete: node.hasInvokeRights(DELETE_ADDRESS_SIG) ?? false
+                    canDelete: broker.hasInvokeRights(DESTROY_QUEUE_SIG) ?? false
                 };
             }
 
