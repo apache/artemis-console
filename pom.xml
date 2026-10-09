@@ -55,6 +55,8 @@
         <node-version>v22.23.1</node-version>
         <yarn-version>v4.9.2</yarn-version>
         <frontend-maven-plugin-version>1.15.1</frontend-maven-plugin-version>
+        <assembly-sbom-maven-plugin-version>0.1.4</assembly-sbom-maven-plugin-version>
+        <cdx-npm-enrich-version>0.1.6</cdx-npm-enrich-version>
         <project.build.outputTimestamp>2026-04-27T13:23:57Z</project.build.outputTimestamp>
     </properties>
 
@@ -244,6 +246,9 @@
                             <exclude>**/tsconfig.json</exclude>
                             <exclude>**/artemis-extension/app/build/**</exclude>
                             <exclude>**/artemis-extension/packages/artemis-console-plugin/dist/**</exclude>
+
+                            <!-- Generated SBOM -->
+                            <exclude>**/bom.cdx.json</exclude>
                         </excludes>
                     </configuration>
                 </plugin>

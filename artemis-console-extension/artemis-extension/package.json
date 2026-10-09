@@ -1,6 +1,6 @@
 {
   "name": "artemis-console-monorepo",
-  "version": "0",
+  "version": "0.0.0",
   "description": "Artemis Console Monorepo",
   "license": "Apache-2.0",
   "private": true,
