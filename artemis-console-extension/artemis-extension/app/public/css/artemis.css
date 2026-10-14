@@ -355,6 +355,12 @@ background-color: var(--artemis-global--primary-color--300);
   --pf-v5-global--link--Color--light: var(--artemis-global--primary-color-dark--300);
   --pf-v5-global--link--Color--light--hover: var(--artemis-global--primary-color--dark-400);
   --pf-v5-global--disabled-color--100: var(--artemis-global--primary-color-dark--200);
+  /**
+   * Without this the token keeps its light-mode value from the block above,
+   * putting #714099 on the dark surfaces at 2.15:1 to 2.52:1, against the 4.5:1
+   * WCAG 2.1 AA needs. The dark palette equivalent measures 9.92:1 to 11.61:1.
+   */
+  --pf-v5-topology__node--Color: var(--artemis-global--primary-color-dark--100);
   svg.pf-v5-svg {
     fill: var(--artemis-global--primary-color-dark--200);
   }
