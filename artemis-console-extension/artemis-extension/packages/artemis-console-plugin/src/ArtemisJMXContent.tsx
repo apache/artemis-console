@@ -14,46 +14,39 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PageGroup, PageSection, PageSectionVariants, Title, Divider, Text, EmptyState, EmptyStateIcon, EmptyStateVariant } from "@patternfly/react-core"
-import { useContext } from "react";
-import { ArtemisContext } from "./context";
-import { CubesIcon } from "@patternfly/react-icons/dist/esm/icons/cubes-icon";
-import './ArtemisJMXContent.css' 
-import { ArtemisJMXTabs } from "./views/ArtemisJMXTabView";
+import React, { useContext } from 'react'
+import {
+  PageGroup,
+  PageSection,
+  PageSectionVariants,
+  Title,
+  Content,
+  EmptyState
+} from '@patternfly/react-core'
+import { CubesIcon } from '@patternfly/react-icons/dist/esm/icons/cubes-icon'
+
+import { ArtemisContext } from './context'
+import { ArtemisJMXTabs } from './views/ArtemisJMXTabView'
 
 export const ArtemisJmxContent: React.FunctionComponent = () => {
 
-    const { selectedNode } = useContext(ArtemisContext);
+  const { selectedNode } = useContext(ArtemisContext)
 
-    if(!selectedNode) {
+  if (!selectedNode) {
     return  (
-            <PageSection variant={PageSectionVariants.light} isFilled>
-                <EmptyState variant={EmptyStateVariant.full}>
-                <EmptyStateIcon icon={CubesIcon} />
-                <Title headingLevel='h1' size='lg'>
-                    Select Artemis Node
-                </Title>
-                </EmptyState>
-            </PageSection>
-        )
-    }
-
-    return (
-        <PageGroup id='artemis-jmx-content'>
-        <PageSection id='jmx-content-header' variant={PageSectionVariants.light}>
-            <Title headingLevel='h1'>{selectedNode.name}</Title>
-            <Text component='small'>{selectedNode.objectName}</Text>
-        </PageSection>
-        <Divider />
-        <PageSection
-            id='artemis-jmx-content-main'
-            variant={PageSectionVariants.light}
-            padding={{ default: 'noPadding' }}
-            hasOverflowScroll
-            aria-label='jmx-content-main'
-        >
-            <ArtemisJMXTabs/>
-        </PageSection>
-      </PageGroup>
+      <PageSection isFilled hasBodyWrapper={false}>
+        <EmptyState headingLevel='h1' icon={CubesIcon} titleText='Select Artemis Node' variant='full' />
+      </PageSection>
     )
+  }
+
+  return (
+    <PageGroup id='artemis-jmx-content'>
+      <PageSection id='jmx-content-header' variant={PageSectionVariants.default} hasBodyWrapper={false}>
+        <Title headingLevel='h1'>{selectedNode.name}</Title>
+        {selectedNode.objectName && <Content component='small'>{selectedNode.objectName}</Content>}
+      </PageSection>
+      <ArtemisJMXTabs />
+    </PageGroup>
+  )
 }

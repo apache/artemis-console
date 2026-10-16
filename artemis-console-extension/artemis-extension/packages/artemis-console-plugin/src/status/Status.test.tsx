@@ -22,8 +22,11 @@ import { ArtemisContext } from '../context'
 import { artemisPluginName } from '../globals'
 
 jest.mock('../artemis-service')
+jest.mock('react-router', () => ({}))
 jest.mock('@hawtio/react', () => ({
   ...jest.requireActual('@hawtio/react'),
+  Attributes: () => <div>Attributes</div>,
+  Operations: () => <div>Operations</div>,
   jolokiaService: {
     loadUpdateRate: jest.fn(),
     errorMessage: jest.fn((error) => error.message || 'Error')
@@ -39,12 +42,18 @@ const mockBrokerInfo: BrokerInfo = {
   objectName: 'org.apache.activemq.artemis:broker=127.0.0.1',
   version: '2.50.0',
   uptime: '1 day',
-  started: 'true',
+  started: true,
   haPolicy: 'Primary',
   globalMaxSizeMB: 1024,
   addressMemoryUsed: 25.5,
   addressMemoryUsage: 256,
-  networkTopology: new BrokerNetworkTopology([])
+  networkTopology: new BrokerNetworkTopology([]),
+  diskStoreUsagePercentage: 0,
+  backup: false,
+  clustered: false,
+  connectionCount: 0,
+  maxDiskUsage: 1024*1024*1024,
+  replicaSync: false
 }
 
 const mockBrokerState: BrokerState = {
@@ -56,7 +65,9 @@ const mockBrokerState: BrokerState = {
 const renderWithContext = () => {
   const contextValue = {
     tree: MBeanTree.createEmpty(artemisPluginName),
+    loaded: true,
     selectedNode: null,
+    jmxDomain: 'org.apache.activemq.artemis',
     brokerNode: undefined,
     setSelectedNode: jest.fn(),
     findAndSelectNode: jest.fn()
@@ -127,7 +138,7 @@ describe('Status', () => {
       expect(artemisService.getBrokerInfo).toHaveBeenCalledTimes(2)
     })
 
-    const brokerInfoCard = screen.getByText('Broker Info').closest('.pf-v5-c-card') as HTMLElement
+    const brokerInfoCard = screen.getByText('Broker Info').closest('.pf-v6-c-card') as HTMLElement
     const menuToggle = within(brokerInfoCard).getByRole('button', { expanded: false })
     fireEvent.click(menuToggle)
 
@@ -160,7 +171,7 @@ describe('Status', () => {
       expect(screen.getByText('Broker Info')).toBeInTheDocument()
     })
 
-    const brokerInfoCard = screen.getByText('Broker Info').closest('.pf-v5-c-card') as HTMLElement
+    const brokerInfoCard = screen.getByText('Broker Info').closest('.pf-v6-c-card') as HTMLElement
     const menuToggle = within(brokerInfoCard).getByRole('button', { expanded: false })
     fireEvent.click(menuToggle)
 
@@ -207,13 +218,15 @@ describe('Status', () => {
       expect(screen.getByText('Broker Info')).toBeInTheDocument()
     })
 
-    const brokerInfoCard = screen.getByText('Broker Info').closest('.pf-v5-c-card') as HTMLElement
+    const brokerInfoCard = screen.getByText('Broker Info').closest('.pf-v6-c-card') as HTMLElement
     const menuToggle = within(brokerInfoCard).getByRole('button', { expanded: false })
     fireEvent.click(menuToggle)
 
     const attributesButton = await screen.findByText('Attributes')
     fireEvent.click(attributesButton)
 
+    screen.debug()
+    const iss = typeof screen.getByLabelText
     await waitFor(() => {
       expect(screen.getByLabelText('attributes-modal')).toBeInTheDocument()
     })

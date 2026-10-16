@@ -14,27 +14,34 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { eventService, jolokiaService } from '@hawtio/react';
-import {  Text } from '@patternfly/react-core';
-import { useEffect, useState } from 'react';
-import { artemisService } from './artemis-service';
+import React, { useEffect, useState } from 'react'
+import { Flex, FlexItem } from '@patternfly/react-core'
 
+import { eventService, jolokiaService } from '@hawtio/react'
+
+import { artemisService } from './artemis-service'
 
 export const ArtemisHeader: React.FunctionComponent = () => {
 
-    const [ brokerHeader, setBrokerHeader] = useState('')
+  const [brokerHeader, setBrokerHeader] = useState('')
 
-     useEffect(() => {
-        artemisService.getBrokerName()
-        .then((brokerName) => {
-           setBrokerHeader(brokerName ? brokerName : '');
-        })
-        .catch((error) => {
-            eventService.notify({type: 'warning', message: jolokiaService.errorMessage(error) })
-        });
-    },[])
+   useEffect(() => {
+    artemisService.getBrokerName()
+    .then((brokerName) => {
+       setBrokerHeader(brokerName ? brokerName : '')
+    })
+    .catch((error) => {
+      eventService.notify({ type: 'warning', message: jolokiaService.errorMessage(error) })
+    })
+  }, [])
 
-    return (
-        <><Text>{'Broker ('}</Text><Text style={{ color: 'var(--pf-v5-global--active-color--200)' }} >{brokerHeader}</Text><Text>{')'}</Text></>
-    );
+  return (
+      <Flex direction={{ default: 'row' }} spaceItems={{ default: 'spaceItemsNone' }}>
+        <FlexItem>Broker (</FlexItem>
+        <FlexItem>
+          <span style={{ color: 'var(--pf-t--global--text--color--subtle)' }}>{brokerHeader}</span>
+        </FlexItem>
+        <FlexItem>)</FlexItem>
+      </Flex>
+  )
 }

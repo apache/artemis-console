@@ -19,6 +19,13 @@ import { ArtemisTabs } from './ArtemisTabView'
 import { artemisService } from '../artemis-service'
 
 jest.mock('../artemis-service')
+jest.mock('react-router', () => ({
+  useNavigate: () => jest.fn(),
+  useLocation: () => jest.fn(),
+  Routes: ({ children }: any) => <div data-testid="routes">{children}</div>,
+  Route: ({ element }: any) => <div>{element}</div>,
+  Navigate: () => null
+}))
 jest.mock('../context', () => ({
   useArtemisTree: jest.fn(() => ({
     tree: {},
@@ -49,9 +56,9 @@ jest.mock('../sessions/SessionsTable', () => ({
 jest.mock('../addresses/AddressesTable', () => ({
   AddressesTable: () => null
 }))
-jest.mock('../queues/QueuesView', () => ({
-  QueuesView: () => null
-}))
+jest.mock('../queues/QueuesView', () => {
+  return {QueuesView: () => null}
+})
 jest.mock('../status/Status', () => ({
   Status: () => null
 }))

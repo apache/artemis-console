@@ -16,7 +16,7 @@
  */
 import { beforeAll, describe, expect, test } from "@jest/globals"
 import { artemisService } from "./artemis-service";
-import { SortDirection } from './table/ArtemisTable'
+import { SortDirection } from './table/types'
 import { userService, parseMBeanName } from '@hawtio/react'
 
 beforeAll(async () => {
@@ -35,8 +35,8 @@ describe("Artemis Service basic tests", () => {
     expect.assertions(1)
     let addresses = artemisService.getAddresses(
         1, 50,
-        { id: "0", order: SortDirection.ASCENDING },
-        { column: "", operation: "", input: "" }
+        { column: "0", order: SortDirection.ASCENDING },
+        { tab: 'addresses', column: "", operation: "CONTAINS", input: "" }
     )
     await expect(addresses).resolves.toContain("DLQ");
   })

@@ -120,9 +120,9 @@ module.exports = (webpackEnv, args) => {
             singleton: true,
             requiredVersion: dependencies['react-dom'],
           },
-          'react-router-dom': {
+          'react-router': {
             singleton: true,
-            requiredVersion: dependencies['react-router-dom'],
+            requiredVersion: dependencies['react-router'],
           },
           '@hawtio/react': {
             singleton: true,
@@ -143,7 +143,8 @@ module.exports = (webpackEnv, args) => {
         // https://github.com/microsoft/monaco-editor/issues/1509
         languages: ['xml', 'json', 'html'],
         publicPath: '',
-        globalAPI: true
+        globalAPI: true,
+        monacoEditorPath: path.resolve(__dirname, '../node_modules/monaco-editor'),
       }),
       new InvestigationPlugin({})
     ],
@@ -232,13 +233,18 @@ module.exports = (webpackEnv, args) => {
     ],
     resolve: {
       extensions: ['.ts', '.tsx', '.js', '.cjs', '.jsx'],
+      symlinks: false,
       alias: {
         'artemis-console-plugin': path.resolve(__dirname, '../packages/artemis-console-plugin/src'),
         '@thumbmarkjs/thumbmarkjs': path.join(__dirname, '../node_modules/@thumbmarkjs/thumbmarkjs/dist/thumbmark.esm.js'),
       },
     },
     optimization: isEnvProduction ? {
-      minimize: isEnvProduction,
+      minimize: {
+        // new webpack plugin uses built-in minimizer and we have no reason to optimize htmls
+        // https://webpack.js.org/configuration/optimization/#optimizationminimizer
+        html: false,
+      },
       minimizer: [
         // This is only used in production mode
         new TerserPlugin({

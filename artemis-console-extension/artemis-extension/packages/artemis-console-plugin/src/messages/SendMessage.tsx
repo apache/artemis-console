@@ -14,46 +14,50 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React, { FormEvent, useRef, useState } from 'react'
-import xmlFormat from 'xml-formatter'
-
+import React, { useRef, useState } from 'react'
 import {
   Button,
+  Content,
   Flex,
   FlexItem,
   Form,
   FormGroup,
   MenuToggle,
   MenuToggleElement,
-  PageSection,
   Select,
   SelectList,
   SelectOption,
   TextInput,
   Title,
-  Text,
   Checkbox,
   Tooltip,
   Popover,
-  TextContent
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+  Panel,
+  PanelHeader,
+  PanelMain,
+  PanelMainBody,
+  PanelFooter,
 } from '@patternfly/react-core'
 import { OutlinedQuestionCircleIcon } from '@patternfly/react-icons/dist/esm/icons/outlined-question-circle-icon'
 import { InfoCircleIcon } from '@patternfly/react-icons/dist/esm/icons/info-circle-icon'
 import { TrashIcon } from '@patternfly/react-icons/dist/esm/icons/trash-icon'
-import { CodeEditor, Language } from '@patternfly/react-code-editor'
-import { eventService, jolokiaService } from '@hawtio/react'
-import { artemisService } from '../artemis-service'
-import { Message } from './MessageView'
 
+import { CodeEditor, Language } from '@patternfly/react-code-editor'
+
+import xmlFormat from 'xml-formatter'
 import * as monacoEditor from 'monaco-editor'
 import { loader } from '@monaco-editor/react'
 
-loader.config({ monaco: monacoEditor })
+import { eventService, jolokiaService } from '@hawtio/react'
+import { useIsDarkTheme } from '@hawtio/react/ui'
 
-type SendBodyMessageProps = {
-  onBodyChange: (body: string) => void
-  body?: string
-}
+import { artemisService } from '../artemis-service'
+import { Message } from './MessageView'
+
+loader.config({ monaco: monacoEditor })
 
 type SendMessageProps = {
   queue: string
@@ -61,10 +65,29 @@ type SendMessageProps = {
   address: string
   isAddress: boolean
   message?: Message
+  // a function that should be used for close handlers of the dialog
+  onClose?: () => void
+  // a function that can be called when the message is sent (so the parent component can refresh the table for example)
+  onSend?: () => void
+  // Title may be passed to be used in ModalHeader
+  title?: string
+  // whether this component is shown in a Modal component (defaults to true)
+  shownInModal?: boolean
 }
 
-const MessageBody: React.FunctionComponent<SendBodyMessageProps> = props => {
-  const [messageBody, setMessageBody] = useState<string>(props.body?props.body:'')
+type NameValue = { name: string, value: string }
+type NameValueArray = NameValue[]
+
+type MessageBodyProps = {
+  onBodyChange: (body: string) => void
+  body?: string
+}
+
+const MessageBody: React.FunctionComponent<MessageBodyProps> = props => {
+
+  const isDarkTheme = useIsDarkTheme()
+
+  const [messageBody, setMessageBody] = useState<string>(props.body ? props.body : '')
   const [selectedFormat, setSelectedFormat] = useState<Language>(Language.xml)
   const [isDropdownOpen, setDropdownOpen] = useState(false)
   const editorRef = useRef<monacoEditor.editor.IStandaloneCodeEditor | null>(null)
@@ -100,7 +123,6 @@ const MessageBody: React.FunctionComponent<SendBodyMessageProps> = props => {
     setDropdownOpen(false)
   }
 
-
   return (
     <>
       <FormGroup label='Message'>
@@ -108,7 +130,8 @@ const MessageBody: React.FunctionComponent<SendBodyMessageProps> = props => {
           code={messageBody}
           onEditorDidMount={editorDidMount}
           language={selectedFormat}
-          height={'300px'}
+          height='10rem'
+          isDarkTheme={isDarkTheme}
           onChange={updateMessageBody}
         />
       </FormGroup>
@@ -144,20 +167,22 @@ const MessageBody: React.FunctionComponent<SendBodyMessageProps> = props => {
 }
 
 type MessageHeadersProps = {
-  onHeadersChange: (headers: { name: string; value: string }[]) => void
-  headers?: any
+  onHeadersChange: (headers: NameValueArray) => void
+  headers?: Record<string, string>
 }
+
 const MessageHeaders: React.FunctionComponent<MessageHeadersProps> = props => {
-  const initialheaders: Array<{ name: string; value: string }> = [];
-  if(props.headers) {
-    Object.keys(props.headers).forEach((key, index) => {
-      initialheaders.push({
+  const initialHeaders: NameValueArray = []
+  if (props.headers) {
+    Object.keys(props.headers).forEach((key, _index) => {
+      initialHeaders.push({
         name: key,
-        value: props.headers?props.headers[key]:''
-      });
-  })
+        value: props.headers ? props.headers[key] : ''
+      })
+    })
   }
-  const [headers, setHeaders] = useState<Array<{ name: string; value: string }>>(initialheaders)
+
+  const [headers, setHeaders] = useState<NameValueArray>(initialHeaders)
 
   const handleInputChange = (index: number, newValue: string, event: React.FormEvent<HTMLInputElement>) => {
     const updatedHeaders = [...headers]
@@ -165,6 +190,7 @@ const MessageHeaders: React.FunctionComponent<MessageHeadersProps> = props => {
     setHeaders(updatedHeaders)
     props.onHeadersChange(updatedHeaders)
   }
+
   const handleAddHeader = () => {
     const updatedHeaders = [...headers, { name: '', value: '' }]
     setHeaders(updatedHeaders)
@@ -181,7 +207,6 @@ const MessageHeaders: React.FunctionComponent<MessageHeadersProps> = props => {
   return (
     <>
       <FormGroup>
-        {/* eslint-disable-next-line react/jsx-no-undef */}
         <Button variant='link' onClick={handleAddHeader}>
           Add Headers
         </Button>
@@ -228,17 +253,18 @@ const MessageHeaders: React.FunctionComponent<MessageHeadersProps> = props => {
   )
 }
 
-export const SendMessage: React.FunctionComponent<SendMessageProps> = (props: SendMessageProps) => {
-  const [isDurableChecked, setIsDurableChecked] = useState<boolean>(props.message? props.message.durable:true);
-  const [isCreateIDChecked, setIsCreateIDChecked] = useState<boolean>(false);
-  const [isUseLogonChecked, setIsUselogonChecked] = useState<boolean>(true);
-  const [username, setUsername] = useState('admin');
-  const [password, setPassword] = useState('password');
+export const SendMessage: React.FunctionComponent<SendMessageProps> = props => {
   
-  const messageHeaders = useRef<Array<{ name: string; value: string }>>([])
+  const [isDurableChecked, setIsDurableChecked] = useState(props.message? props.message.durable:true)
+  const [isCreateIDChecked, setIsCreateIDChecked] = useState(false)
+  const [isUseLogonChecked, setIsUseLogonChecked] = useState(true)
+  const [username, setUsername] = useState('admin')
+  const [password, setPassword] = useState('password')
+  
+  const messageHeaders = useRef<NameValueArray>([])
   const messageBody = useRef<string>('')
 
-  const updateHeaders = (headers: { name: string; value: string }[]) => {
+  const updateHeaders = (headers: NameValueArray) => {
     messageHeaders.current = [...headers]
   }
   const updateTheMessageBody = (body: string) => {
@@ -246,108 +272,131 @@ export const SendMessage: React.FunctionComponent<SendMessageProps> = (props: Se
   }
 
   const handleUsernameChange = (_event: React.FormEvent<HTMLInputElement>, name: string) => {
-    setUsername(name);
-  };
+    setUsername(name)
+  }
 
   const handlePasswordChange = (_event: React.FormEvent<HTMLInputElement>, password: string) => {
-    setPassword(password);
-  };
+    setPassword(password)
+  }
 
-  const handleSubmit = (event: FormEvent) => {
-    event.preventDefault()
+  const handleSubmit = () => {
     if (props.isAddress) {
       artemisService.doSendMessageToAddress(messageBody.current, messageHeaders.current, isDurableChecked, isCreateIDChecked, isUseLogonChecked, username, password, props.address)
         .then(() => {
+          props?.onSend?.()
           eventService.notify({
             type: 'success',
-            message: "Message Successfully Sent",
+            message: 'Message Successfully Sent',
           })
         })
         .catch((error) => {
-          eventService.notify({type: 'warning', message: jolokiaService.errorMessage(error) })
+          eventService.notify({ type: 'warning', message: jolokiaService.errorMessage(error) })
         })
     } else {
       artemisService.doSendMessageToQueue(messageBody.current, messageHeaders.current, isDurableChecked, isCreateIDChecked, isUseLogonChecked, username, password, props.routingType.toLowerCase(), props.queue, props.address)
         .then(() => {
+          props?.onSend?.()
           eventService.notify({
             type: 'success',
-            message: "Message Successfully Sent",
+            message: 'Message Successfully Sent',
           })
         })
         .catch((error) => {
-          eventService.notify({type: 'warning', message: jolokiaService.errorMessage(error) })
+          eventService.notify({ type: 'warning', message: jolokiaService.errorMessage(error) })
         })
     }
   }
 
-
   const Hint = () => (
-    <TextContent>
-      <Text component='p'>
+    <Content>
+      <Content component='p'>
         Use this page to send a message of type <code>TextMessage</code> to an address or queue. 
-      </Text>
-    </TextContent>
+      </Content>
+    </Content>
   )
 
-  return (
-    <PageSection variant='light'>
-      <Title headingLevel='h2'>Send Message to {props.isAddress ? 'Address' : 'Queue'} {props.address}{' '}
-        <Popover bodyContent={Hint}><OutlinedQuestionCircleIcon /></Popover></Title>
-      <Text component='p'>  <br /></Text>
-      <Form onSubmit={handleSubmit}>
-        <FormGroup
-          label="Durable"
-          labelIcon={<Tooltip content='Mark the message as persistent and write it to the broker journal if the destination queue is durable.'><InfoCircleIcon /></Tooltip>}
-        >
-          <Checkbox
-            isChecked={isDurableChecked}
-            onChange={() => setIsDurableChecked(!isDurableChecked)}
-            id="durable" />
+  let title = null
+  if (!props.title) {
+    title = (<Title headingLevel='h1' size='lg'>
+      Send Message to {props.isAddress ? 'Address' : 'Queue'} {props.address}{' '}
+      <Popover bodyContent={Hint}><OutlinedQuestionCircleIcon /></Popover>
+    </Title>)
+  } else {
+    title = (<Title headingLevel='h1' size='lg'>{props.title}</Title>)
+  }
 
-        </FormGroup>
-        <FormGroup label="Create Message ID"
-          labelIcon={
-            <Tooltip content='Select to request that the broker generates a universally unique identifier (UUID) on the message before it is routed. For a JMS client, the UUID is the JMS Message ID of the message. Normally, not required if you are using a non-JMS client.'><InfoCircleIcon />
-            </Tooltip>}>
+  const form = (
+      <Form>
+        <FormGroup label='Durable'
+                   labelHelp={<Tooltip content='Mark the message as persistent and write it to the broker journal if the destination queue is durable.'><InfoCircleIcon /></Tooltip>}>
           <Checkbox
-            isChecked={isCreateIDChecked}
-            onChange={() => setIsCreateIDChecked(!isCreateIDChecked)}
-            id="createid" />
+              isChecked={isDurableChecked}
+              onChange={() => setIsDurableChecked(!isDurableChecked)}
+              id='durable' />
         </FormGroup>
-        <FormGroup label="Use Current Logged in User"
-          labelIcon={<Tooltip content='Use the credentials of the user that is currently logged in to the console to send a message. If you want to use a different user, clear the checkbox and specify a username and password.'><InfoCircleIcon /></Tooltip>}
-        >
+        <FormGroup label='Create Message ID'
+                   labelHelp={<Tooltip content='Select to request that the broker generates a universally unique identifier (UUID) on the message before it is routed. For a JMS client, the UUID is the JMS Message ID of the message. Normally, not required if you are using a non-JMS client.'><InfoCircleIcon /></Tooltip>}>
           <Checkbox
-            isChecked={isUseLogonChecked}
-            onChange={() => setIsUselogonChecked(!isUseLogonChecked)}
-            id="uselogon" />
+              isChecked={isCreateIDChecked}
+              onChange={() => setIsCreateIDChecked(!isCreateIDChecked)}
+              id='createid' />
         </FormGroup>
-        {!isUseLogonChecked &&
-          <><FormGroup label="Username">
+        <FormGroup label='Use Current Logged in User'
+                   labelHelp={<Tooltip content='Use the credentials of the user that is currently logged in to the console to send a message. If you want to use a different user, clear the checkbox and specify a username and password.'><InfoCircleIcon /></Tooltip>}>
+          <Checkbox
+              isChecked={isUseLogonChecked}
+              onChange={() => setIsUseLogonChecked(!isUseLogonChecked)}
+              id='uselogon' />
+        </FormGroup>
+        {!isUseLogonChecked && <>
+          <FormGroup label='Username'>
             <TextInput
-              value={username}
-              type='text'
-              onChange={handleUsernameChange}
-              id="username"
-              name="username" />
-          </FormGroup><FormGroup label="Password">
-              <TextInput
+                value={username}
+                type='text'
+                onChange={handleUsernameChange}
+                id='username'
+                name='username' />
+          </FormGroup>
+          <FormGroup label='Password'>
+            <TextInput
                 value={password}
                 type='password'
                 onChange={handlePasswordChange}
-                id="password"
-                name="password" />
-            </FormGroup></>
-        }
-        <MessageHeaders onHeadersChange={updateHeaders} headers={props.message?.StringProperties}/>
+                id='password'
+                name='password' />
+          </FormGroup>
+        </>}
+        <MessageHeaders onHeadersChange={updateHeaders} headers={props.message?.StringProperties} />
         <MessageBody onBodyChange={updateTheMessageBody} body={props.message?.text} />
-        <FormGroup>
-
-          <Button type='submit' className='pf-m-1-col'>
-            Send
-          </Button>
-        </FormGroup>
       </Form>
-    </PageSection>
   )
+
+  const useModalWrapper = props.shownInModal === undefined || props.shownInModal
+
+  if (useModalWrapper) {
+    return (
+        <>
+          <ModalHeader>{title}</ModalHeader>
+          <ModalBody>{form}</ModalBody>
+          <ModalFooter>
+            <Button variant='primary' onClick={() => handleSubmit()}>Send</Button>
+            <Button key='close' variant='link' onClick={() => props.onClose?.()}>Close</Button>
+          </ModalFooter>
+        </>
+    )
+  } else {
+    return (
+        <>
+          <Panel>
+            <PanelHeader>{title}</PanelHeader>
+            <PanelMain>
+              <PanelMainBody>{form}</PanelMainBody>
+            </PanelMain>
+            <PanelFooter>
+              <Button variant='primary' onClick={() => handleSubmit()}>Send</Button>
+            </PanelFooter>
+          </Panel>
+        </>
+    )
+  }
 }

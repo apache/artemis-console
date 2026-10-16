@@ -55,7 +55,8 @@ import {
   withSelection,
   WithSelectionProps,
   withTargetDrag,
-  TopologySideBar
+  TopologySideBar,
+  defaultElementFactory
 } from '@patternfly/react-topology';
 import { useEffect, useRef, useState } from 'react';
 import { artemisService, BrokerInfo, BrokerTopology } from '../artemis-service';
@@ -364,6 +365,7 @@ export const BrokerDiagram: React.FunctionComponent = () => {
     const newController = new Visualization();
     newController.registerLayoutFactory(customLayoutFactory);
     newController.registerComponentFactory(customComponentFactory);
+    newController.registerElementFactory(defaultElementFactory)
 
     newController.addEventListener(SELECTION_EVENT, setSelectedIds);
     newController.addEventListener(GRAPH_LAYOUT_END_EVENT, () => {
@@ -606,7 +608,7 @@ export const BrokerDiagram: React.FunctionComponent = () => {
 
     </ToolbarItem>
     <ToolbarItem>
-        <Button onClick={() => setTopologyLoaded(false)}>Refresh</Button>
+        <Button onClick={() => setTopologyLoaded(false)} size='sm'>Refresh</Button>
     </ToolbarItem></>
   );
 
@@ -624,11 +626,11 @@ export const BrokerDiagram: React.FunctionComponent = () => {
   );
 
   return (
-    <><TopologyView contextToolbar={contextToolbar} sideBar={topologySideBar}>
+    <><TopologyView className='broker-diagram' contextToolbar={contextToolbar} sideBar={topologySideBar}>
       <VisualizationProvider controller={controller}>
         <VisualizationSurface state={{ selectedIds, viewOptions }} />
       </VisualizationProvider>
-    </TopologyView><Attributes /></>
+    </TopologyView></>
   );
 };
 
