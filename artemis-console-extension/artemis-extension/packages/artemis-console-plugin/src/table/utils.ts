@@ -24,7 +24,7 @@ import { operationOptions } from './constants'
 /**
  * Type of the loader function used by functions from artemisService
  */
-type LoaderFunction = (page: number, perPage: number, sort: ActiveSort | undefined, filter: Filter | Filter[])
+type LoaderFunction = (page: number, perPage: number, sort: ActiveSort | undefined, filter: Filter | Filter[], defaultFilter?: Filter)
     => Promise<string>
 
 /**
@@ -36,13 +36,15 @@ type LoaderFunction = (page: number, perPage: number, sort: ActiveSort | undefin
  * @param perPage
  * @param sort
  * @param filters
+ * @param defaultFilter
  */
-export async function loadFilteredData(tab: ArtemisTabId, loaderFunction: LoaderFunction, page: number, perPage: number, sort: ActiveSort | undefined, filters: Filter[]): Promise<TableRowsData> {
+export async function loadFilteredData(tab: ArtemisTabId, loaderFunction: LoaderFunction, page: number, perPage: number, sort: ActiveSort | undefined,
+                                       filters: Filter[], defaultFilter?: Filter): Promise<TableRowsData> {
   let tabFilters: Filter | Filter[] = filters.filter(f => f.tab === tab)
   if (tabFilters.length == 1) {
     tabFilters = tabFilters[0]
   }
-  const response = await loaderFunction(page, perPage, sort, tabFilters).catch(error => {
+  const response = await loaderFunction(page, perPage, sort, tabFilters, defaultFilter).catch(error => {
     eventService.notify({ type: "warning", message: jolokiaService.errorMessage(error) })
     return JSON.stringify({ data: [], count: 0 })
   })

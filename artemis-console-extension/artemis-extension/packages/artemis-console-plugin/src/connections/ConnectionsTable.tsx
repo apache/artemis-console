@@ -83,7 +83,7 @@ export const ConnectionsTable: React.FunctionComponent<ArtemisTableFilterProps> 
   const [refreshCount, setRefreshCount] = useState(0)
 
   const listConnections = useCallback(async (page: number, perPage: number, sort: ActiveSort | undefined, filters: Filter[]): Promise<TableRowsData> => {
-    return loadFilteredData('connections', artemisService.getConnections.bind(artemisService), page, perPage, sort, filters)
+    return loadFilteredData('connections', artemisService.getConnections.bind(artemisService), page, perPage, sort, filters, initialFilter)
   }, [])
 
   const closeConnection = () => {

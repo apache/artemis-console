@@ -95,7 +95,7 @@ export const SessionsTable: React.FunctionComponent<ArtemisTableFilterProps> = p
   const [refreshCount, setRefreshCount] = useState(0)
 
   const listSessions = useCallback(async (page: number, perPage: number, sort: ActiveSort | undefined, filters: Filter[]): Promise<TableRowsData> => {
-    return loadFilteredData('sessions', artemisService.getSessions.bind(artemisService), page, perPage, sort, filters)
+    return loadFilteredData('sessions', artemisService.getSessions.bind(artemisService), page, perPage, sort, filters, initialFilter)
   }, [])
 
   const closeSession = () => {

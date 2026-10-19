@@ -87,6 +87,9 @@ function findBrokers(children: MBeanNode[] | undefined): MBeanNode[] {
     if (!c.id.endsWith('-folder')) {
       if (c.mbean?.class === 'org.apache.activemq.artemis.core.management.impl.ActiveMQServerControlImpl') {
         oldBrokers.set(c.name, c)
+      } else if (typeof c.mbean === 'object' && 'attr' in c.mbean && typeof c.mbean.attr === 'object' && 'AddressMemoryUsage' in c.mbean.attr) {
+        // When running old jolokia and old brokers, we may not get c.mbean.class
+        oldBrokers.set(c.name, c)
       }
     }
   }
@@ -144,6 +147,9 @@ function findAddresses(children: MBeanNode[] | undefined): MBeanNode[] {
     if (!c.id.endsWith('-folder')) {
       if (c.mbean?.class === 'org.apache.activemq.artemis.core.management.impl.AddressControlImpl') {
         // non folder child with this class is an address
+        oldAddresses.set(c.name, c)
+      } else if (typeof c.mbean === 'object' && 'attr' in c.mbean && typeof c.mbean.attr === 'object' && 'MessageCount' in c.mbean.attr) {
+        // When running old jolokia and old brokers, we may not get c.mbean.class
         oldAddresses.set(c.name, c)
       }
     } else {

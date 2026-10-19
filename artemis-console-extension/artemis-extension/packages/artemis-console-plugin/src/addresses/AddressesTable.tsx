@@ -124,7 +124,7 @@ export const AddressesTable: React.FunctionComponent<ArtemisTableFilterProps> = 
   const canCreateAddress = artemisService.canCreateAddress(brokerNode)
 
   const listAddresses = useCallback(async (page: number, perPage: number, sort: ActiveSort | undefined, filters: Filter[]): Promise<TableRowsData> => {
-    return loadFilteredData('addresses', artemisService.getAddresses.bind(artemisService), page, perPage, sort, filters)
+    return loadFilteredData('addresses', artemisService.getAddresses.bind(artemisService), page, perPage, sort, filters, initialFilter)
   }, [])
 
   // Action to be added next to address table filter

@@ -120,7 +120,7 @@ export const ConsumerTable: React.FunctionComponent<ArtemisTableFilterProps> = p
   const [refreshCount, setRefreshCount] = useState(0)
 
   const listConsumers = useCallback(async (page: number, perPage: number, sort: ActiveSort | undefined, filters: Filter[]): Promise<TableRowsData> => {
-    return loadFilteredData('consumers', artemisService.getConsumers.bind(artemisService), page, perPage, sort, filters)
+    return loadFilteredData('consumers', artemisService.getConsumers.bind(artemisService), page, perPage, sort, filters, initialFilter)
   }, [])
 
   const closeConsumer = () => {

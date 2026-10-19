@@ -137,7 +137,7 @@ export const QueuesTable: React.FunctionComponent<QueuesTableFilterProps> = prop
   ], [messageView])
 
   const listQueues = useCallback(async (page: number, perPage: number, sort: ActiveSort | undefined, filters: Filter[]): Promise<any> => {
-    return loadFilteredData('queues', artemisService.getQueues.bind(artemisService), page, perPage, sort, filters)
+    return loadFilteredData('queues', artemisService.getQueues.bind(artemisService), page, perPage, sort, filters, initialFilter)
   }, [])
 
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)

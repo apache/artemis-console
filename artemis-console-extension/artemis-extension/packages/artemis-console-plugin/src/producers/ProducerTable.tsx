@@ -81,7 +81,7 @@ const initialSort: ActiveSort = { column: allColumns[1].id, order: SortDirection
 export const ProducerTable: React.FunctionComponent<ArtemisTableFilterProps> = props => {
 
   const listProducers = useCallback(async (page: number, perPage: number, sort: ActiveSort | undefined, filters: Filter[]): Promise<TableRowsData> => {
-    return loadFilteredData('producers', artemisService.getProducers.bind(artemisService), page, perPage, sort, filters)
+    return loadFilteredData('producers', artemisService.getProducers.bind(artemisService), page, perPage, sort, filters, initialFilter)
   }, [])
 
   return (

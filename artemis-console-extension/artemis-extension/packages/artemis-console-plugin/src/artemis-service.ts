@@ -589,7 +589,7 @@ class ArtemisService {
         }
     }
 
-    private filterParameter(filter: Filter | Filter[], sort?: ActiveSort): string {
+    private filterParameter(filter: Filter | Filter[], sort?: ActiveSort, defaultFilter?: Filter): string {
         let connectionsFilter: FilterOptions = {}
         if (sort && sort.column && sort.order) {
             // "sortColumn" is deprecated in ARTEMIS-5071, use "sortField"
@@ -605,40 +605,46 @@ class ArtemisService {
             if (f && f.column && f.operation) {
                 Object.assign(connectionsFilter, this.singleFilter(f))
             } else {
-                // no filters, pass empty array instead of "field CONTAINS ''"
-                connectionsFilter.searchFilters = []
+                // no filters, we could pass empty array instead of "field CONTAINS ''" but better stay compatible
+                // with brokers before 2.53.0
+                // connectionsFilter.searchFilters = []
+                if (defaultFilter) {
+                    Object.assign(connectionsFilter, this.singleFilter(defaultFilter))
+                } else {
+                    connectionsFilter.searchFilters = []
+                }
             }
         }
         return JSON.stringify(connectionsFilter)
     }
 
-    async getConnections(page: number, perPage: number, sort: ActiveSort | undefined, filter: Filter | Filter[]): Promise<string> {
-        const filtering = this.filterParameter(filter, sort)
+    async getConnections(page: number, perPage: number, sort: ActiveSort | undefined, filter: Filter | Filter[], emptyFilter?: Filter): Promise<string> {
+        const filtering = this.filterParameter(filter, sort, emptyFilter)
         return jolokiaService.execute(await this.getBrokerObjectName(), LIST_CONNECTIONS_SIG, [filtering, page, perPage]) as Promise<string>
     }
 
-    async getSessions(page: number, perPage: number, sort: ActiveSort | undefined, filter: Filter | Filter[]): Promise<string> {
-        const filtering = this.filterParameter(filter, sort)
+    async getSessions(page: number, perPage: number, sort: ActiveSort | undefined, filter: Filter | Filter[], emptyFilter?: Filter): Promise<string> {
+        const filtering = this.filterParameter(filter, sort, emptyFilter)
         return await jolokiaService.execute(await this.getBrokerObjectName(), LIST_SESSIONS_SIG, [filtering, page, perPage]) as string;
     }
 
-    async getProducers(page: number, perPage: number, sort: ActiveSort | undefined, filter: Filter | Filter[]): Promise<string> {
-        const filtering = this.filterParameter(filter, sort)
+    async getProducers(page: number, perPage: number, sort: ActiveSort | undefined, filter: Filter | Filter[], emptyFilter?: Filter): Promise<string> {
+        const filtering = this.filterParameter(filter, sort, emptyFilter)
         return await jolokiaService.execute(await this.getBrokerObjectName(), LIST_PRODUCERS_SIG, [filtering, page, perPage]) as string;
     }
 
-    async getConsumers(page: number, perPage: number, sort: ActiveSort | undefined, filter: Filter | Filter[]): Promise<string> {
-        const filtering = this.filterParameter(filter, sort)
+    async getConsumers(page: number, perPage: number, sort: ActiveSort | undefined, filter: Filter | Filter[], emptyFilter?: Filter): Promise<string> {
+        const filtering = this.filterParameter(filter, sort, emptyFilter)
         return await jolokiaService.execute(await this.getBrokerObjectName(), LIST_CONSUMERS_SIG, [filtering, page, perPage]) as string;
     }
 
-    async getAddresses(page: number, perPage: number, sort: ActiveSort | undefined, filter: Filter | Filter[]): Promise<string> {
-        const filtering = this.filterParameter(filter, sort)
+    async getAddresses(page: number, perPage: number, sort: ActiveSort | undefined, filter: Filter | Filter[], emptyFilter?: Filter): Promise<string> {
+        const filtering = this.filterParameter(filter, sort, emptyFilter)
         return await jolokiaService.execute(await this.getBrokerObjectName(), LIST_ADDRESSES_SIG, [filtering, page, perPage]) as string;
     }
 
-    async getQueues(page: number, perPage: number, sort: ActiveSort | undefined, filter: Filter | Filter[]): Promise<string> {
-        const filtering = this.filterParameter(filter, sort)
+    async getQueues(page: number, perPage: number, sort: ActiveSort | undefined, filter: Filter | Filter[], emptyFilter?: Filter): Promise<string> {
+        const filtering = this.filterParameter(filter, sort, emptyFilter)
         return await jolokiaService.execute(await this.getBrokerObjectName(), LIST_QUEUES_SIG, [filtering, page, perPage]) as string;
     }
 
