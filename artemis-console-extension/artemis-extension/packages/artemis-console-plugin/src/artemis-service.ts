@@ -972,7 +972,7 @@ export function isValid(value: any): { valid: boolean, message: string | null } 
         }
         for (const k in value) {
             const v = value[k]
-            if (typeof v === "object" && ".error" in v) {
+            if (v && typeof v === "object" && ".error" in v) {
                 // fail fast with an error related to first field of the wrapping object
                 return { valid: false, message: jolokiaService.errorMessage(v) }
             }
