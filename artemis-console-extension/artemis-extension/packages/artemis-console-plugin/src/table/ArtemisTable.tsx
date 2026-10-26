@@ -56,6 +56,7 @@ import {
   Tr
 } from '@patternfly/react-table'
 import { SortAmountDownIcon } from '@patternfly/react-icons/dist/esm/icons/sort-amount-down-icon'
+import { RhUiRefreshIcon } from '@patternfly/react-icons/dist/esm/icons/rh-ui-refresh-icon'
 
 import { eventService, jolokiaService } from '@hawtio/react'
 
@@ -140,6 +141,9 @@ export type ArtemisTableProps = ArtemisTableFilterProps & {
 
   /** Additional actions to use at the top of the table (next to the filter and column management) */
   toolbarActions?: ToolbarAction[],
+
+  /** Function for refreshing the table content without changing any filtering/sorting */
+  refresh?: () => void,
 
   /** A counter for reloading the data due to out-of-bound change (like adding an address or closing a connection) */
   refreshCount?: number,
@@ -413,7 +417,7 @@ export const ArtemisTable: React.FunctionComponent<ArtemisTableProps> = props =>
       <Toolbar id='artemis-tabs-toolbar'>
         <ToolbarContent>
           {/* Sorting */}
-          <ToolbarItem key='address-sort'>
+          <ToolbarItem key='table-sort'>
             <Dropdown
                 isOpen={isSortDropdownOpen}
                 toggle={(toggleRef) => (
@@ -445,6 +449,12 @@ export const ArtemisTable: React.FunctionComponent<ArtemisTableProps> = props =>
                 </DropdownList>
               </DropdownGroup>
             </Dropdown>
+          </ToolbarItem>
+          {/* Refreshing */}
+          <ToolbarItem key='table-refresh'>
+            <Button variant="link" isCircle aria-label="Refresh" icon={<RhUiRefreshIcon />} onClick={() => {
+              props.refresh?.()
+            }} />
           </ToolbarItem>
           <ToolbarItem variant='separator' />
 

@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React, { useCallback } from 'react'
+import React, { useCallback, useState } from 'react'
 import {
   Label,
   LabelStatus
@@ -80,6 +80,8 @@ const initialSort: ActiveSort = { column: allColumns[1].id, order: SortDirection
 
 export const ProducerTable: React.FunctionComponent<ArtemisTableFilterProps> = props => {
 
+  const [refreshCount, setRefreshCount] = useState(0)
+
   const listProducers = useCallback(async (page: number, perPage: number, sort: ActiveSort | undefined, filters: Filter[]): Promise<TableRowsData> => {
     return loadFilteredData('producers', artemisService.getProducers.bind(artemisService), page, perPage, sort, filters, initialFilter)
   }, [])
@@ -90,8 +92,12 @@ export const ProducerTable: React.FunctionComponent<ArtemisTableFilterProps> = p
                   initialSort={initialSort}
                   getData={listProducers}
                   storageColumnLocation={columnStorage.producers}
+                  refreshCount={refreshCount}
                   switchTab={props.switchTab}
                   filters={props.filters}
+                  refresh={() => {
+                    setRefreshCount(c => c + 1)
+                  }}
                   editGlobalFilter={props.editGlobalFilter} />
   )
 }

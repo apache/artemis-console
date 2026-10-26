@@ -326,6 +326,9 @@ export const QueuesTable: React.FunctionComponent<QueuesTableFilterProps> = prop
                     refreshCount={refreshCount}
                     switchTab={props.switchTab}
                     filters={props.filters}
+                    refresh={() => {
+                      setRefreshCount(c => c + 1)
+                    }}
                     editGlobalFilter={props.editGlobalFilter} />
 
       <Modal aria-label='queue-delete-modal' variant={ModalVariant.medium} isOpen={showDeleteDialog}

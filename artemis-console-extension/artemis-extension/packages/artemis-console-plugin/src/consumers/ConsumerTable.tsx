@@ -165,6 +165,9 @@ export const ConsumerTable: React.FunctionComponent<ArtemisTableFilterProps> = p
                     refreshCount={refreshCount}
                     switchTab={props.switchTab}
                     filters={props.filters}
+                    refresh={() => {
+                      setRefreshCount(c => c + 1)
+                    }}
                     editGlobalFilter={props.editGlobalFilter} />
 
       <Modal aria-label='consumer-close-modal' variant={ModalVariant.medium} isOpen={showConsumerCloseDialog}

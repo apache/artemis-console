@@ -127,6 +127,9 @@ export const ConnectionsTable: React.FunctionComponent<ArtemisTableFilterProps> 
                     refreshCount={refreshCount}
                     switchTab={props.switchTab}
                     filters={props.filters}
+                    refresh={() => {
+                      setRefreshCount(c => c + 1)
+                    }}
                     editGlobalFilter={props.editGlobalFilter} />
 
       <Modal aria-label='connection-close-modal' variant={ModalVariant.medium} isOpen={showConnectionCloseDialog}
