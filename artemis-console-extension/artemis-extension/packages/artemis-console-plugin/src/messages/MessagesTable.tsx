@@ -378,8 +378,17 @@ export const MessagesTable: React.FunctionComponent<MessageTableProps> = props =
 
   const doesCopyMessageMethodExist = artemisService.doesMethodExist(brokerNode, props.queue.name, "copyMessage")
 
-  const isRetryQueue = props.queue.name.match(artemisPreferencesService.loadArtemisPreferences().artemisDLQ)
-      || props.queue.name.match(artemisPreferencesService.loadArtemisPreferences().artemisExpiryQueue)
+  let isDLQ
+  let isExpiry
+  try {
+    isDLQ = props.queue.name.match(artemisPreferencesService.loadArtemisPreferences().artemisDLQ)
+  } catch (ignored) {
+  }
+  try {
+    isExpiry = props.queue.name.match(artemisPreferencesService.loadArtemisPreferences().artemisExpiryQueue)
+  } catch (ignored) {
+  }
+  const isRetryQueue = isDLQ || isExpiry
 
   if (!doesCopyMessageMethodExist) {
     log.warn("Copy button method not available in this version of Artemis")

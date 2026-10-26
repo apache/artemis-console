@@ -113,7 +113,34 @@ class ArtemisPreferencesService implements IArtemisPreferencesService {
   private loadFromStorage(): Partial<ArtemisOptions> {
     const localStorageData = localStorage.getItem(STORAGE_KEY_ARTEMIS_PREFERENCES)
 
-    return localStorageData ? JSON.parse(localStorageData) : {}
+    const preferences =  localStorageData ? JSON.parse(localStorageData) : {}
+
+    // just a sanity/compatibility check
+    let changed = false
+    if (preferences && 'artemisDLQ' in preferences) {
+      const re = preferences['artemisDLQ']
+      try {
+        RegExp(re)
+      } catch (error) {
+        preferences['artemisDLQ'] = ARTEMIS_PREFERENCES_DEFAULT_VALUES.artemisDLQ
+        changed = true
+      }
+    }
+    if (preferences && 'artemisExpiryQueue' in preferences) {
+      const re = preferences['artemisExpiryQueue']
+      try {
+        RegExp(re)
+      } catch (error) {
+        preferences['artemisExpiryQueue'] = ARTEMIS_PREFERENCES_DEFAULT_VALUES.artemisExpiryQueue
+        changed = true
+      }
+    }
+
+    if (changed) {
+      localStorage.setItem(STORAGE_KEY_ARTEMIS_PREFERENCES, JSON.stringify(preferences))
+    }
+
+    return preferences
   }
 }
 

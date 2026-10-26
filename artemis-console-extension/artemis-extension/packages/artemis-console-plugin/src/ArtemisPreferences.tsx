@@ -19,6 +19,9 @@ import {
   CardBody,
   Form,
   FormGroup,
+  FormHelperText,
+  HelperText,
+  HelperTextItem,
   Icon,
   MenuToggle,
   MenuToggleElement,
@@ -26,21 +29,15 @@ import {
   SelectList,
   SelectOption,
   TextInput,
-  Tooltip
+  Tooltip,
+  ValidatedOptions
 } from '@patternfly/react-core'
 import { HelpIcon } from '@patternfly/react-icons/dist/esm/icons/help-icon'
+import { RhUiErrorFillIcon } from '@patternfly/react-icons'
 
 import { HawtioFormSection } from '@hawtio/react'
 
 import { artemisPreferencesService, ArtemisOptions } from './artemis-preferences-service'
-
-export const ArtemisPreferences: React.FunctionComponent = () => (
-  <CardBody>
-    <Form isHorizontal>
-      <ArtemisPreferencesForm />
-    </Form>
-  </CardBody>
-)
 
 export const TooltipHelpIcon = ({ tooltip }: { tooltip: string }) => (
   <Icon size='md'>
@@ -56,7 +53,7 @@ type FormatType = {
   index: number
 }
 
-const ArtemisPreferencesForm: React.FunctionComponent = () => {
+export const ArtemisPreferences: React.FunctionComponent = () => {
   const off: FormatType = { id: 'off', description: 'Off', index: 99 }
   const text: FormatType = { id: 'text', description: 'Text', index: 16 }
   const decimal: FormatType = { id: 'decimal', description: 'Decimal', index: 8 }
@@ -67,7 +64,8 @@ const ArtemisPreferencesForm: React.FunctionComponent = () => {
   const formats = [off, text, decimal, hex, decimaltext, hexttext]
 
   const [artemisPreferences, setArtemisPreferences] = useState(artemisPreferencesService.loadArtemisPreferences())
-  const [isDropdownOpen, setDropdownOpen] = React.useState(false)
+  const [currentArtemisPreferences, setCurrentArtemisPreferences] = useState(artemisPreferencesService.loadArtemisPreferences())
+  const [isDropdownOpen, setDropdownOpen] = useState(false)
   const format = formats.find(format => format.index === artemisPreferences.artemisBrowseBytesMessages)
   const [selectedFormat, setSelectedFormat] = useState(format ? format.description : off.description)
 
@@ -76,18 +74,39 @@ const ArtemisPreferencesForm: React.FunctionComponent = () => {
 
   const [isPageSizeDropdownOpen, setPageSizeDropdownOpen] = React.useState(false)
 
+  const [validRE1, setValidRE1] = useState(true)
+  const [validRE2, setValidRE2] = useState(true)
+
   const updatePreferences = (value: string | number | boolean, key: keyof ArtemisOptions): void => {
     const updatedPreferences = { ...artemisPreferences, ...{ [key]: value } }
 
     artemisPreferencesService.saveArtemisPreferences(updatedPreferences)
     setArtemisPreferences(updatedPreferences)
+    setCurrentArtemisPreferences(updatedPreferences)
   }
 
   const updateStringValueFor = (key: keyof ArtemisOptions): ((event: React.FormEvent<HTMLInputElement>, value: string) => void) => {
     return (_event: React.FormEvent<HTMLInputElement>, value: string) => {
-      if (!value) return
+      if (value === null || value === undefined) {
+        return
+      }
 
       updatePreferences(value, key)
+    }
+  }
+
+  const updateRegExpValueFor = (key: keyof ArtemisOptions, validState: React.Dispatch<React.SetStateAction<boolean>>): ((event: React.FormEvent<HTMLInputElement>, value: string) => void) => {
+    return (_event: React.FormEvent<HTMLInputElement>, value: string) => {
+      try {
+        RegExp(value)
+        validState(true)
+        updatePreferences(value, key)
+      } catch (error) {
+        validState(false)
+        setCurrentArtemisPreferences(p => {
+          return { ...p, ...{ [key]: value } }
+        })
+      }
     }
   }
 
@@ -132,9 +151,19 @@ const ArtemisPreferencesForm: React.FunctionComponent = () => {
               <TextInput
                 id='artemis-input-artemisDLQ'
                 type='text'
-                value={artemisPreferences.artemisDLQ}
-                onChange={updateStringValueFor('artemisDLQ')}
+                value={currentArtemisPreferences.artemisDLQ}
+                onChange={updateRegExpValueFor('artemisDLQ', setValidRE1)}
+                validated={validRE1 ? ValidatedOptions.success : ValidatedOptions.error}
               />
+              {!validRE1 && (
+                  <FormHelperText>
+                    <HelperText>
+                      <HelperTextItem icon={<RhUiErrorFillIcon />} variant={ValidatedOptions.error}>
+                        Invalid regular expression.
+                      </HelperTextItem>
+                    </HelperText>
+                  </FormHelperText>
+              )}
             </FormGroup>
             <FormGroup
               label='Expiry address regex'
@@ -144,9 +173,19 @@ const ArtemisPreferencesForm: React.FunctionComponent = () => {
               <TextInput
                 id='artemis-input-expiry'
                 type='text'
-                value={artemisPreferences.artemisExpiryQueue}
-                onChange={updateStringValueFor('artemisExpiryQueue')}
+                value={currentArtemisPreferences.artemisExpiryQueue}
+                onChange={updateRegExpValueFor('artemisExpiryQueue', setValidRE2)}
+                validated={validRE2 ? ValidatedOptions.success : ValidatedOptions.error}
               />
+              {!validRE2 && (
+                  <FormHelperText>
+                    <HelperText>
+                      <HelperTextItem icon={<RhUiErrorFillIcon />} variant={ValidatedOptions.error}>
+                        Invalid regular expression.
+                      </HelperTextItem>
+                    </HelperText>
+                  </FormHelperText>
+              )}
             </FormGroup>
             <FormGroup
               label='Browse Bytes Messages'
