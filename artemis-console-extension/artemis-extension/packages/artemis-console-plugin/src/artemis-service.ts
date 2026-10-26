@@ -160,8 +160,8 @@ export type queuePermissions = {
  * See `org.apache.activemq.artemis.core.management.impl.view.ActiveMQAbstractView#createFilterPredicates`
  */
 export type SingleFilterOptions = {
-  field: string
-  operation: FilterOperation
+  field?: string
+  operation?: FilterOperation
   value?: string
 }
 

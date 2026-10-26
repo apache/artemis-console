@@ -475,6 +475,9 @@ export const ArtemisTable: React.FunctionComponent<ArtemisTableProps> = props =>
           <ToolbarItem>
             <LabelGroup categoryName='Filters' isClosable onClick={() => applyFilter(tabFilters[0], RemoveFilterScope.ALL)}>
               {tabFilters.map((f, idx) => {
+                if (!(f.column && f.operation)) {
+                  return null
+                }
                 const column = columns.find(c => c.id === f.column)
                 if (column) {
                   const columnName = column.name

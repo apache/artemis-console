@@ -18,8 +18,10 @@
 import React, { useRef, useState } from 'react'
 import {
   Button,
+  Content,
   MenuToggle,
   MenuToggleElement,
+  Popover,
   SearchInput,
   Select,
   SelectList,
@@ -27,6 +29,7 @@ import {
   Switch,
   ToolbarItem
 } from '@patternfly/react-core'
+import { OutlinedQuestionCircleIcon } from '@patternfly/react-icons/dist/esm/icons/outlined-question-circle-icon'
 
 import { ColumnType, type Filter, RemoveFilterScope, type TableColumn } from './types'
 import { operationOptions } from './constants'
@@ -82,9 +85,9 @@ export const ArtemisFilters: React.FC<ArtemisFiltersProps> = ({ columns, filter,
       ? availableOperations(filterColumn.type).map(available => operationOptions.find(op => op.id === available)!)
       : undefined
 
-  // applying a filter using "Filter" or enter calls up the method passed as onApplyFilter, which updates the global
+  // applying a filter using "Add Filter" or enter calls up the method passed as onApplyFilter, which updates the global
   // filter which leads to new data being fetched and re-render of ArtemisTable and ArtemisFilters
-  const applyFilter = () => {
+  const addFilter = () => {
     if (filterColumn?.type === ColumnType.BOOLEAN) {
       if (filterOperation) {
         onApplyFilter({ tab: filter.tab, column: filterColumn.id, operation: filterOperation.id, input: booleanOption ? 'true' : 'false' })
@@ -100,7 +103,7 @@ export const ArtemisFilters: React.FC<ArtemisFiltersProps> = ({ columns, filter,
    * Clearing current filter (a tuple of "column", "operation" and "value") removes the filter from global filters for
    * current tab and also picks up the last available filter to be shown. This allows to quickly click "Clear" again.
    */
-  const clearFilter = () => {
+  const removeFilter = () => {
     if (filterColumn && filterOperation) {
       const input = filterColumn.type === ColumnType.BOOLEAN ? booleanOption ? 'true' : 'false' : searchRef.current?.value
       // pass current column|operation|value for removal from global filters
@@ -117,6 +120,13 @@ export const ArtemisFilters: React.FC<ArtemisFiltersProps> = ({ columns, filter,
     }
   }
 
+  /**
+   * Remove all the filters for current tab
+   */
+  const clearAllFilters = () => {
+    onApplyFilter({ tab: filter.tab }, RemoveFilterScope.ALL)
+  }
+
   const adjustOperationList = (column?: ArtemisFiltersProps['columns'][number]) => {
     if (!column) {
       setFilterOperation(undefined)
@@ -128,6 +138,14 @@ export const ArtemisFilters: React.FC<ArtemisFiltersProps> = ({ columns, filter,
       }
     }
   }
+
+  const FilterHint = () => (
+      <Content component='p'>
+        Artemis Broker supports multiple filters since&nbsp;
+        <a href='https://artemis.apache.org/components/artemis/download/release-notes-2.53.0' target='_blank'>version 2.53.0</a>.
+        For earlier versions only one filter may be added.
+      </Content>
+  )
 
   return (
     <>
@@ -193,7 +211,7 @@ export const ArtemisFilters: React.FC<ArtemisFiltersProps> = ({ columns, filter,
               value={filterColumn.id === filter.column && filter.input ? `${filter.input}` : ''}
               onKeyDown={(e) => {
                   if (e.key === 'Enter') {
-                    applyFilter()
+                    addFilter()
                   }
                   if (e.key === 'Escape') {
                     if (searchRef.current) {
@@ -212,8 +230,10 @@ export const ArtemisFilters: React.FC<ArtemisFiltersProps> = ({ columns, filter,
         )}
       </ToolbarItem>
 
-      <Button onClick={applyFilter} isDisabled={filterableColumns.length == 0} size='sm'>Filter</Button>
-      <Button onClick={clearFilter} isDisabled={filterableColumns.length == 0} size='sm' variant='secondary'>Clear</Button>
+      <Button onClick={addFilter} isDisabled={filterableColumns.length == 0} size='sm'>Add Filter</Button>
+      <Button onClick={removeFilter} isDisabled={filterableColumns.length == 0} size='sm'>Remove Filter</Button>
+      <Button onClick={clearAllFilters} isDisabled={filterableColumns.length == 0} size='sm' variant='secondary'>Clear All</Button>
+      <Popover bodyContent={FilterHint}><OutlinedQuestionCircleIcon /></Popover>
     </>
   )
 }

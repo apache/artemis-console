@@ -111,9 +111,9 @@ export type Filter = {
   /** An Artemis tab identifier for which the column (ID) makes sense and the filter applies */
   tab: ArtemisTabId
   /** Column identifier (not name) */
-  column: string
+  column?: string
   /** One of the available filtering operations */
-  operation: FilterOperation
+  operation?: FilterOperation
   /** The argument of the filtering operation */
   input?: string | number | boolean
 }

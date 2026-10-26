@@ -107,7 +107,7 @@ export const ArtemisTabs: React.FunctionComponent = () => {
       let filterArray: Filter[]
       if (remove) {
         if (remove === RemoveFilterScope.ALL) {
-          // remove all for given tab
+          // remove all for given tab - anything by f.tab is ignored from the Filter object
           filterArray = filters.searchFilters.filter(f => !(f.tab === filter.tab))
         } else /*if (remove === RemoveFilterScope.SINGLE)*/ {
           // leave all that don't match the passed filter tuple
