@@ -155,6 +155,12 @@ export type queuePermissions = {
   canDelete: boolean;
 }
 
+export enum BrokerStatus {
+  UNINITIALIZED,
+  AVAILABLE,
+  MISSING_IN_JMX
+}
+
 /**
  * Filtering information for a single field passed for data loading.
  * See `org.apache.activemq.artemis.core.management.impl.view.ActiveMQAbstractView#createFilterPredicates`
@@ -250,8 +256,13 @@ class ArtemisService {
 
     private brokerObjectName: Promise<string>
 
+    private brokerStatus: BrokerStatus
+    private statusListeners: ((st: BrokerStatus) => void)[]
+
     constructor() {
         this.brokerObjectName = Promise.resolve("")
+        this.brokerStatus = BrokerStatus.UNINITIALIZED
+        this.statusListeners = []
     }
 
     /**
@@ -275,6 +286,7 @@ class ArtemisService {
             if (typeof response === "object" && ".error" in response) {
                 return ""
             }
+            this.status = BrokerStatus.AVAILABLE
             return response as string;
         }
         return null;
@@ -939,6 +951,23 @@ class ArtemisService {
 
     canListNetworkTopology = (broker: MBeanNode | undefined): boolean => {
         return (this.DEBUG_PRIVS && broker?.hasInvokeRights(LIST_NETWORK_TOPOLOGY_SIG)) ?? false
+    }
+
+    addStatusListener = (listener: () => void) => {
+        this.statusListeners.push(listener)
+    }
+
+    removeStatusListener = (listener: () => void) => {
+        this.statusListeners = this.statusListeners.filter(l => l !== listener)
+    }
+
+    get status(): BrokerStatus {
+        return this.brokerStatus
+    }
+
+    set status(st: BrokerStatus) {
+        this.brokerStatus = st
+        this.statusListeners.forEach(l => { l(st) })
     }
 }
 

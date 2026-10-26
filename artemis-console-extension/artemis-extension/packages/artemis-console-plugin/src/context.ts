@@ -19,6 +19,7 @@ import { createContext, startTransition, useCallback, useContext, useEffect, use
 import { type To, useLocation, useNavigate, useSearchParams } from 'react-router'
 import { artemisJMXPluginPath, artemisPluginName, PARAM_KEY_NODE_ID } from "./globals";
 import { configManager } from "./config-manager";
+import { artemisService, BrokerStatus } from './artemis-service'
 
 /**
  * Custom React hook for using the Artemis MBean tree.
@@ -33,8 +34,6 @@ export function useArtemisTree() {
     // tree loading may happen in the background and "loaded" reflects the state of (re)load
     const [loaded, setLoaded] = useState(false)
 
-    // hooks from React Router to synchronize selected node with `nid` query parameter (in both directions)
-    const { search } = useLocation()
     const navigate = useNavigate()
 
     const [brokerNode, setBrokerNode] = useState<MBeanNode>();
@@ -49,12 +48,8 @@ export function useArtemisTree() {
         const config = await configManager.getArtemisconfig();
         const artemisJmxDomainNode = wkspTree.find(node => node.name === config.jmx.domain)
         if (!(artemisJmxDomainNode && artemisJmxDomainNode.children && artemisJmxDomainNode.children.length > 0)) {
-            // Redirect to the JMX view as fallback
-            eventService.notify({
-                type: 'warning',
-                message: 'No Artemis domain detected in target. Redirecting to back to jmx.',
-            })
-            navigate({ pathname: '/jmx', search }, { replace: true })
+            // change the status (it'll notify the listeners - one of them is the header status)
+            artemisService.status = BrokerStatus.MISSING_IN_JMX
             return null
         }
 
@@ -71,7 +66,7 @@ export function useArtemisTree() {
         // node as that that appears in the workspace tree
         // There should be only one actual Camel context - contextsNode.getChildren() should be of length=1
         return MBeanTree.createFromNodes(artemisPluginName, [artemisJmxDomainNode])
-    }, [navigate, search])
+    }, [navigate])
 
     // this effect loads the tree - both at initial render and when the tree is refreshed (by TreeWatcher)
     // outside of React
@@ -83,6 +78,7 @@ export function useArtemisTree() {
             if (apply) {
                 if (tree) {
                     setTree(tree)
+                    artemisService.status = BrokerStatus.AVAILABLE
                 }
                 setLoaded(true)
             }
