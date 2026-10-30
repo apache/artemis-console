@@ -30,7 +30,7 @@ You can quickly run and test the console by using `jetty-maven-plugin` configure
 Jetty server and deploys the plugin WAR application. From the 'artemis-console-war' directory run:
 
 ```console
-mvn -f artemis-console-war/pom.xml jetty:run-war -Dskip.yarn
+mvn jetty:run-war -Dskip.yarn
 ```
 
 You can access the Artemis console with the sample plugin at: <http://localhost:8080/console/>. To connect to a running 
