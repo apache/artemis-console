@@ -22,7 +22,13 @@ import { artemisService } from '../artemis-service';
 
 export type MessageProps = {
   currentMessage: Message,
-  back?: Function
+  back?: Function,
+  onNext?: () => void,
+  onPrevious?: () => void,
+  hasNext?: boolean,
+  hasPrevious?: boolean,
+  currentIndex?: number,
+  totalCount?: number
 }
 
 export type Message = {
@@ -52,7 +58,7 @@ export type Message = {
 
 export const MessageView: React.FunctionComponent<MessageProps> = props => {
 
-  const [currentMessage] = useState(props.currentMessage);
+  const currentMessage = props.currentMessage;
   const [messageBody, setMessageBody] = useState("");
   const [messageTextMode, setMessageTextMode] = useState("");
 
@@ -126,7 +132,9 @@ export const MessageView: React.FunctionComponent<MessageProps> = props => {
 
   return (
     <>
-    <Title headingLevel="h4">Message ID: {currentMessage.messageID}</Title>
+    <Title headingLevel="h4">
+      Message ID: {currentMessage.messageID} ({(props.currentIndex ?? 0) + 1}/{props.totalCount})
+    </Title>
     <Title headingLevel="h4">Displaying Body as : {messageTextMode}</Title>
     <TextArea id="body" autoResize isDisabled value={messageBody}></TextArea>
     <Title headingLevel="h4">Headers</Title>
@@ -229,6 +237,12 @@ export const MessageView: React.FunctionComponent<MessageProps> = props => {
         <><Button id='message-view-queues-button' onClick={() => { if (props.back) { props.back(0); } } }>Queues</Button>
         <Button id='message-view-browse-button'  onClick={() => { if (props.back) { props.back(1); } }}>Browse</Button></>
     }
+    {(props.onPrevious || props.onNext) &&
+      <>
+        <Button id='message-view-previous-button' isDisabled={!props.hasPrevious} onClick={() => { if (props.onPrevious) { props.onPrevious(); } }}>Previous</Button>
+        <Button id='message-view-next-button' isDisabled={!props.hasNext} onClick={() => { if (props.onNext) { props.onNext(); } }}>Next</Button>
+      </>
+    }
     </>
   )
 }
@@ -237,7 +251,7 @@ function getProps(properties: any, type:string): React.ReactNode {
   if(properties) {
     return Object.keys(properties).map((key, index) => {
       return (
-        <Tr id={key}>
+        <Tr id={key} key={key}>
           <Td id={key + "key"}>{key}</Td>
           <Td id={key + "val"}>{"" + properties[key]}</Td>
           <Td id={key + "type"}>{type}</Td>
