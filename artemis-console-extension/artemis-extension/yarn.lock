@@ -3575,7 +3575,7 @@ __metadata:
     path-browserify: "npm:^1.0.1"
     react: "npm:^18.3.1"
     react-dom: "npm:^18.3.1"
-    react-router-dom: "npm:^6.30.3"
+    react-router-dom: "npm:^6.30.6"
     replace: "npm:^1.2.2"
     source-map-loader: "npm:^5.0.0"
     style-loader: "npm:^4.0.0"
@@ -3625,7 +3625,7 @@ __metadata:
     monaco-editor: "npm:^0.52.2"
     react: "npm:^18.3.1"
     react-dom: "npm:^18.3.1"
-    react-router-dom: "npm:^6.30.3"
+    react-router-dom: "npm:^6.30.6"
     react-split: "npm:^2.0.14"
     replace: "npm:^1.2.2"
     ts-jest: "npm:^29.4.6"
@@ -9793,16 +9793,16 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react-router-dom@npm:^6.30.3":
-  version: 6.30.3
-  resolution: "react-router-dom@npm:6.30.3"
+"react-router-dom@npm:^6.30.6":
+  version: 6.30.6
+  resolution: "react-router-dom@npm:6.30.6"
   dependencies:
-    "@remix-run/router": "npm:1.23.2"
-    react-router: "npm:6.30.3"
+    "@remix-run/router": "npm:1.23.4"
+    react-router: "npm:6.30.6"
   peerDependencies:
     react: ">=16.8"
     react-dom: ">=16.8"
-  checksum: 10c0/e8a1e13c662ed6ee71a785bd3418ba04b700bcd8aff6ea7b32524371e8abb1c85568cd4fe9b9e9d555b8101fd415f6f1796531f593da60be179ce75b37038657
+  checksum: 10c0/57dbb2ae4ac787f78c4d10b764c1c5223635378033e33dda4e0a4417144ae847fb43dc98008075951826258287c27c67729ca713c90957cf2ecf9055561bdc2e
   languageName: node
   linkType: hard
 
