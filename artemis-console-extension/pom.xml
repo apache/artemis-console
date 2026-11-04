@@ -78,6 +78,36 @@
                             <arguments>yarn build</arguments>
                         </configuration>
                     </execution>
+                    <!--
+                        Generate a CycloneDX SBOM for all npm dependencies
+                        using the official CycloneDX Yarn plugin. Resolves
+                        licenses from package.json in node_modules.
+                    -->
+                    <execution>
+                        <id>generate-sbom</id>
+                        <goals>
+                            <goal>corepack</goal>
+                        </goals>
+                        <configuration>
+                            <arguments>yarn workspace artemis-console-app dlx @cyclonedx/yarn-plugin-cyclonedx@3.3.3 --spec-version 1.6 --output-file ../bom.cdx.json</arguments>
+                        </configuration>
+                    </execution>
+                    <!--
+                        Enrich the SBOM:
+                        - add SHA-512 hashes from yarn.lock;
+                        - add evidence.identity;
+                        - -prod-only excludes non-production dependencies entirely;
+                        - omitting -prod-only sets scope=excluded for non-prod dependencies.
+                    -->
+                    <execution>
+                        <id>enrich-sbom</id>
+                        <goals>
+                            <goal>corepack</goal>
+                        </goals>
+                        <configuration>
+                            <arguments>yarn dlx @cyberstamp/cdx-npm-enrich@${cdx-npm-enrich-version} --prod-only bom.cdx.json</arguments>
+                        </configuration>
+                    </execution>
                     <execution>
                         <id>yarn test</id>
                         <goals>
@@ -116,6 +146,12 @@
                                 <include>**/*</include>
                             </includes>
                             <followSymlinks>false</followSymlinks>
+                        </fileset>
+                        <fileset>
+                            <directory>${basedir}/${extension.path}</directory>
+                            <includes>
+                                <include>bom.cdx.json</include>
+                            </includes>
                         </fileset>
                     </filesets>
                 </configuration>
