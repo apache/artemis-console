@@ -110,6 +110,7 @@
                     <systemProperties>
                         <hawtio.authenticationEnabled>false</hawtio.authenticationEnabled>
                         <hawtio.disableProxy>false</hawtio.disableProxy>
+                        <hawtio.localAddressProbing>false</hawtio.localAddressProbing>
                     </systemProperties>
                 </configuration>
             </plugin>
