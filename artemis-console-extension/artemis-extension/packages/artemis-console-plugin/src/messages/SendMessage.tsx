@@ -35,20 +35,16 @@ import {
   Checkbox,
   Tooltip,
   Popover,
-  TextContent
+  TextContent,
+  TextArea
 } from '@patternfly/react-core'
 import { OutlinedQuestionCircleIcon } from '@patternfly/react-icons/dist/esm/icons/outlined-question-circle-icon'
 import { InfoCircleIcon } from '@patternfly/react-icons/dist/esm/icons/info-circle-icon'
 import { TrashIcon } from '@patternfly/react-icons/dist/esm/icons/trash-icon'
-import { CodeEditor, Language } from '@patternfly/react-code-editor'
+import { Language } from '@patternfly/react-code-editor'
 import { eventService, jolokiaService } from '@hawtio/react'
 import { artemisService } from '../artemis-service'
 import { Message } from './MessageView'
-
-import * as monacoEditor from 'monaco-editor'
-import { loader } from '@monaco-editor/react'
-
-loader.config({ monaco: monacoEditor })
 
 type SendBodyMessageProps = {
   onBodyChange: (body: string) => void
@@ -67,24 +63,16 @@ const MessageBody: React.FunctionComponent<SendBodyMessageProps> = props => {
   const [messageBody, setMessageBody] = useState<string>(props.body?props.body:'')
   const [selectedFormat, setSelectedFormat] = useState<Language>(Language.xml)
   const [isDropdownOpen, setDropdownOpen] = useState(false)
-  const editorRef = useRef<monacoEditor.editor.IStandaloneCodeEditor | null>(null)
-
-  const editorDidMount = (editor: monacoEditor.editor.IStandaloneCodeEditor) => {
-    editorRef.current = editor
-  }
 
   const handleAutoFormat = () => {
-    if (editorRef.current) {
-      const model = editorRef.current.getModel()
-      if (model) {
-        if (selectedFormat === Language.xml) {
-          //monaco doesn't have built in xml formatter
-          updateMessageBody(xmlFormat(messageBody))
-        } else {
-          const range = model.getFullModelRange()
-          editorRef.current.trigger('', 'editor.action.formatDocument', { range })
-        }
-      }
+    try {
+      if (selectedFormat === Language.xml) {
+        updateMessageBody(xmlFormat(messageBody))
+      } else if (selectedFormat === Language.json) {
+        updateMessageBody(JSON.stringify(JSON.parse(messageBody), null, 2))
+       }
+    } catch {
+      // ignore formatting errors
     }
   }
 
@@ -104,13 +92,11 @@ const MessageBody: React.FunctionComponent<SendBodyMessageProps> = props => {
   return (
     <>
       <FormGroup label='Message'>
-        <CodeEditor
-          code={messageBody}
-          onEditorDidMount={editorDidMount}
-          language={selectedFormat}
-          height={'300px'}
-          onChange={updateMessageBody}
-        />
+        <TextArea
+          value={messageBody}
+          onChange={(_event, value) => updateMessageBody(value)}
+          rows={12}
+         />
       </FormGroup>
       <FormGroup>
         <Flex>
@@ -292,61 +278,85 @@ export const SendMessage: React.FunctionComponent<SendMessageProps> = (props: Se
   return (
     <PageSection variant='light'>
       <Title headingLevel='h2'>Send Message to {props.isAddress ? 'Address' : 'Queue'} {props.address}{' '}
-        <Popover bodyContent={Hint}><OutlinedQuestionCircleIcon /></Popover></Title>
-      <Text component='p'>  <br /></Text>
-      <Form onSubmit={handleSubmit}>
-        <FormGroup
-          label="Durable"
-          labelIcon={<Tooltip content='Mark the message as persistent and write it to the broker journal if the destination queue is durable.'><InfoCircleIcon /></Tooltip>}
-        >
-          <Checkbox
-            isChecked={isDurableChecked}
-            onChange={() => setIsDurableChecked(!isDurableChecked)}
-            id="durable" />
+        <Popover bodyContent={Hint}>
+          <OutlinedQuestionCircleIcon />
+        </Popover>
+      </Title>
 
-        </FormGroup>
-        <FormGroup label="Create Message ID"
-          labelIcon={
-            <Tooltip content='Select to request that the broker generates a universally unique identifier (UUID) on the message before it is routed. For a JMS client, the UUID is the JMS Message ID of the message. Normally, not required if you are using a non-JMS client.'><InfoCircleIcon />
-            </Tooltip>}>
-          <Checkbox
-            isChecked={isCreateIDChecked}
-            onChange={() => setIsCreateIDChecked(!isCreateIDChecked)}
-            id="createid" />
-        </FormGroup>
-        <FormGroup label="Use Current Logged in User"
-          labelIcon={<Tooltip content='Use the credentials of the user that is currently logged in to the console to send a message. If you want to use a different user, clear the checkbox and specify a username and password.'><InfoCircleIcon /></Tooltip>}
+      <Text component='p'><br /></Text>
+
+      <Form onSubmit={handleSubmit}>
+
+        <Flex
+          direction={{ default: 'column', md: 'row' }}
+          gap={{ default: 'gapMd' }}
+          alignItems={{ default: 'alignItemsFlexEnd' }}
         >
-          <Checkbox
-            isChecked={isUseLogonChecked}
-            onChange={() => setIsUselogonChecked(!isUseLogonChecked)}
-            id="uselogon" />
-        </FormGroup>
-        {!isUseLogonChecked &&
-          <><FormGroup label="Username">
-            <TextInput
-              value={username}
-              type='text'
-              onChange={handleUsernameChange}
-              id="username"
-              name="username" />
-          </FormGroup><FormGroup label="Password">
+          <FlexItem>
+            <FormGroup
+              label="Durable"
+              labelIcon={<Tooltip content='Mark the message as persistent and write it to the broker journal if the destination queue is durable.'><InfoCircleIcon /></Tooltip>}>
+              <Checkbox
+                isChecked={isDurableChecked}
+                onChange={() => setIsDurableChecked(!isDurableChecked)}
+                id="durable"/>
+            </FormGroup>
+          </FlexItem>
+
+          <FlexItem>
+            <FormGroup
+              label="Create Message ID"
+              labelIcon={<Tooltip content='Select to request that the broker generates a universally unique identifier (UUID) on the message before it is routed.'><InfoCircleIcon /></Tooltip>}>
+              <Checkbox
+                isChecked={isCreateIDChecked}
+                onChange={() => setIsCreateIDChecked(!isCreateIDChecked)}
+                id="createid"/>
+            </FormGroup>
+          </FlexItem>
+
+          <FlexItem>
+            <FormGroup
+              label="Use Current Logged in User"
+              labelIcon={<Tooltip content='Use the credentials of the user that is currently logged in to the console.'><InfoCircleIcon /></Tooltip>}>
+              <Checkbox
+                isChecked={isUseLogonChecked}
+                onChange={() => setIsUselogonChecked(!isUseLogonChecked)}
+                id="uselogon"/>
+            </FormGroup>
+          </FlexItem>
+        </Flex>
+
+        {!isUseLogonChecked && (
+          <>
+            <FormGroup label="Username">
+              <TextInput
+                value={username}
+                type='text'
+                onChange={handleUsernameChange}
+                id="username"
+                name="username"/>
+            </FormGroup>
+
+            <FormGroup label="Password">
               <TextInput
                 value={password}
                 type='password'
                 onChange={handlePasswordChange}
                 id="password"
-                name="password" />
-            </FormGroup></>
-        }
-        <MessageHeaders onHeadersChange={updateHeaders} headers={props.message?.StringProperties}/>
-        <MessageBody onBodyChange={updateTheMessageBody} body={props.message?.text} />
-        <FormGroup>
+                name="password"/>
+            </FormGroup>
+          </>
+        )}
 
+        <MessageHeaders onHeadersChange={updateHeaders} headers={props.message?.StringProperties}/>
+        <MessageBody onBodyChange={updateTheMessageBody} body={props.message?.text}/>
+
+        <FormGroup>
           <Button type='submit' className='pf-m-1-col'>
             Send
           </Button>
         </FormGroup>
+
       </Form>
     </PageSection>
   )
