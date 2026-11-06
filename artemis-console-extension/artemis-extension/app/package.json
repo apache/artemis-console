@@ -11,7 +11,7 @@
     "replace-doc-version": "node ../scripts/replace-version.mjs ./app/build/hawtconfig.json"
   },
   "dependencies": {
-    "@hawtio/react": "2.4.0-pre.1",
+    "@hawtio/react": "2.4.0",
     "@monaco-editor/react": "^4.7.0",
     "@patternfly/patternfly": "^6.6.1",
     "@patternfly/react-charts": "^8.6.1",

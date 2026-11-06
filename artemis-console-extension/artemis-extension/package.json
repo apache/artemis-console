@@ -14,6 +14,7 @@
     "license": "yarn licenses generate-disclaimer -R > ../../artemis-console-distribution/src/main/resources/licenses/licenses/NPMLicenses.txt"
   },
   "resolutions": {
+    "dompurify": "^3.4.17",
     "@module-federation/utilities": "3.1.83"
   },
   "eslintConfig": {

@@ -26,7 +26,7 @@
     "xml-formatter": "^3.7.0"
   },
   "devDependencies": {
-    "@hawtio/react": "2.4.0-pre.1",
+    "@hawtio/react": "2.4.0",
     "@monaco-editor/react": "^4.7.0",
     "@patternfly/react-charts": "^8.6.1",
     "@patternfly/react-code-editor": "^6.6.2",
@@ -43,6 +43,7 @@
     "@types/node": "^26.4.1",
     "@types/react": "^18.3.31",
     "@types/react-dom": "^18.3.7",
+    "dompurify": "^3.4.17",
     "jest": "^30.5.2",
     "jest-environment-jsdom": "^30.5.2",
     "jest-fetch-mock": "^4.2.0",
