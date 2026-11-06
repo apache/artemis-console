@@ -2,8 +2,8 @@
   "branding": {
     "appName": "Artemis Console",
     "showAppName": false,
-    "appLogoUrl": "img/artemis.png",
-    "companyLogoUrl": "img/artemis.png",
+    "appLogoUrl": "img/artemis-logo.svg",
+    "appLogoDarkModeUrl": "img/artemis-logo.svg",
     "css": "css/artemis.css"
   },
   "login": {
@@ -18,7 +18,8 @@
     "productInfo": [],
     "additionalInfo": "",
     "copyright": " ",
-    "imgSrc": "img/artemis.png"
+    "imgSrc": "img/artemis-logo.svg",
+    "imgDarkModeSrc": "img/artemis-logo.svg"
   },
   "disabledRoutes": []
 }

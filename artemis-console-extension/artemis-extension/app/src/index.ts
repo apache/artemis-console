@@ -14,10 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import '@patternfly/patternfly/patternfly-charts.css'
+import '@patternfly/react-core/dist/styles/base.css'
 import '@hawtio/react/dist/init.css'
 import '@hawtio/react/dist/index.css'
-import '@patternfly/react-core/dist/styles/base.css'
-import '../../packages/artemis-console-plugin/dist/index.css';
 import './index.css'
 
 // create an async boundary point, so remaining part of the application is loaded from different chunks

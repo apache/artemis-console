@@ -14,27 +14,57 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { eventService, jolokiaService } from '@hawtio/react';
-import {  Text } from '@patternfly/react-core';
-import { useEffect, useState } from 'react';
-import { artemisService } from './artemis-service';
+import React, { useEffect, useCallback, useState } from 'react'
+import { Label, LabelStatus, Tooltip } from '@patternfly/react-core'
+import { DisconnectedIcon } from '@patternfly/react-icons/dist/esm/icons/disconnected-icon'
+import { InProgressIcon } from '@patternfly/react-icons/dist/esm/icons/in-progress-icon'
+import { RhUiCheckCircleFillIcon } from '@patternfly/react-icons/dist/esm/icons/rh-ui-check-circle-fill-icon'
 
+import { eventService, jolokiaService } from '@hawtio/react'
+
+import { artemisService, BrokerStatus } from './artemis-service'
 
 export const ArtemisHeader: React.FunctionComponent = () => {
 
-    const [ brokerHeader, setBrokerHeader] = useState('')
+  const [brokerHeader, setBrokerHeader] = useState('')
+  const [brokerStatus, setBrokerStatus] = useState<BrokerStatus>(BrokerStatus.UNINITIALIZED)
 
-     useEffect(() => {
-        artemisService.getBrokerName()
-        .then((brokerName) => {
-           setBrokerHeader(brokerName ? brokerName : '');
-        })
-        .catch((error) => {
-            eventService.notify({type: 'warning', message: jolokiaService.errorMessage(error) })
-        });
-    },[])
+  const listener = useCallback(() => {
+    setBrokerStatus(artemisService.status)
+  }, [])
 
-    return (
-        <><Text>{'Broker ('}</Text><Text style={{ color: 'var(--pf-v5-global--active-color--200)' }} >{brokerHeader}</Text><Text>{')'}</Text></>
-    );
+  useEffect(() => {
+    artemisService.getBrokerName()
+      .then((brokerName) => {
+        setBrokerHeader(brokerName ? brokerName : '')
+        setBrokerStatus(artemisService.status)
+      })
+      .catch((error) => {
+        eventService.notify({ type: 'warning', message: jolokiaService.errorMessage(error) })
+      })
+
+    artemisService.addStatusListener(listener)
+    return () => {
+      artemisService.removeStatusListener(listener)
+    }
+  }, [])
+
+  let statusHeader = null
+  if (brokerStatus === BrokerStatus.UNINITIALIZED) {
+    statusHeader = (
+        <Label status={LabelStatus.info} icon={<InProgressIcon />}>Checking...</Label>
+    )
+  } else if (brokerStatus === BrokerStatus.AVAILABLE) {
+    statusHeader = (
+        <Label status={LabelStatus.info} icon={<RhUiCheckCircleFillIcon />}>Broker ({brokerHeader})</Label>
+    )
+  } else {
+    statusHeader = (
+        <Tooltip content={`No Artemis domain found in JMX.`} position='bottom'>
+          <Label status={LabelStatus.warning} icon={<DisconnectedIcon />}>Broker Not Available</Label>
+        </Tooltip>
+    )
+  }
+
+  return statusHeader
 }

@@ -20,6 +20,7 @@ import help from './help.md'
 import { artemisService } from './artemis-service'
 import { configManager } from './config-manager'
 import { artemisTreeProcessor } from './artemis-tree-processor'
+import { PARAM_KEY_NODE_ID } from './globals'
 
 /**
  * Main entry point to Artemis Console Extension called during application bootstrap (`bootstrap.tsx`) before
@@ -69,6 +70,7 @@ export const artemis: HawtioPlugin = () => {
         title: artemisJMXPluginTitle,
         path: artemisJMXPluginPath,
         component: m.ArtemisJMX,
+        knownQueryParams: [PARAM_KEY_NODE_ID],
         order: -1,
         isActive: isActive,
       })

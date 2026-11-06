@@ -22,7 +22,6 @@
         <groupId>org.apache</groupId>
         <artifactId>apache</artifactId>
         <version>31</version>
-        <relativePath>org.apache:apache</relativePath>
     </parent>
 
     <groupId>org.apache.artemis</groupId>
